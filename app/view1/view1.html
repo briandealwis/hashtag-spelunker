@@ -1,0 +1,24 @@
+<p>This is the partial for view 1.</p>
+<div>
+<h2>Top Users</h2>
+<ul>
+<li ng-repeat="user in results.byUsers">{{user[0]}} ({{user[1]}})</li>
+</ul>
+</div>
+
+<div>
+<h2>Top Hashtags</h2>
+<ul>
+<li ng-repeat="tag in results.byHashtags">{{tag[0]}} ({{tag[1]}})</li>
+</ul>
+</div>
+
+<div>
+<h3>Top Hashtags per User</h3>
+					hashtagsByUser
+<ul>
+<li ng-repeat="userTag in results.hashtagsByUser">{{userTag[0]}} ({{userTag[1]}})</li>
+</ul>
+</div>
+
+<div>{{results}}</div>
