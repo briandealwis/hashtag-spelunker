@@ -1,24 +1,65 @@
-<p>This is the partial for view 1.</p>
-<div>
-<h2>Top Users</h2>
-<ul>
-<li ng-repeat="user in results.byUsers">{{user[0]}} ({{user[1]}})</li>
-</ul>
+<div class="parameters">
+Hashtag: <input type="text" pattern="[a-zA-Z][a-zA-Z0-9]*"  ng-model="hashtag"><br>
+Maximum posts: 
+	<input type="range" ng-model="maxPosts" min="0" max="1000">
+	({{maxPosts}})<br>
+Until: <input type="date" ng-model="untilDate"><br>
+Show top:
+	<input type="range" ng-model="pluck" min="10" max="300">
+	({{pluck}})<br>
+<button ng-click="run()">Run</button>
 </div>
+<div ng-if="results">
+	<div>
+		<h1>Results</h1>
+		<div>
+			<div>
+				{{results.media.length}} posts from
+				{{results.earliest.created_time * 1000 | date:mediumDate}} to
+				{{results.latest.created_time * 1000 | date:mediumDate}} 
+				({{(results.latest.created_time - results.earliest.created_time) / 60 / 60 / 24 | number:0}} days); approx  
+				{{results.media.length / ((results.latest.created_time - results.earliest.created_time) / 60 / 60 / 24) | number:2}} posts/day)
+			</div>
+			<span>
+			Earliest: <ig-compact content="results.earliest"></ig-compact>
+			</span>
+			<span>
+			Latest: <ig-compact content="results.latest"></ig-compact><br>
+			</span>
+		</div>
+	</div>
+	<div>
+		<div class="lightbox">
+			<h2>Highlights: {{highlightText}}</h2>
+			<ul>
+				<li ng-repeat="post in highlightedPosts"><ig-compact content="post"></ig-compact></li>
+			</ul>
+		</div>
+		<div class="summary">
+			<div class="topUsers">
+				<h2>Top Users</h2>
+				<ul>
+				<li ng-repeat="user in results.byUsers">
+					<span ng-click="showPostsFromUser(user[0])">{{user[0]}}</span> ({{user[1]}})</li>
+				</ul>
+			</div>
+			<div class="topHashtags">
+				<h2>Top Hashtags</h2>
+				<ul>
+				<li ng-repeat="tag in results.byHashtags">
+					<span ng-click="showPostsWithTag(tag[0])">{{tag[0]}}</span> ({{tag[1]}})</li>
+				</ul>
+			</div>
+		
+			<div class="topHashtagPerUser">
+				<h2>Top Hashtags per User</h2>
+				<ul>
+				<li ng-repeat="userTag in results.hashtagsByUser">
+					<span ng-click="showPostsFromUserWithTag(userTag[0])">{{userTag[0]}}</span> ({{userTag[1]}})</li>
+				</ul>
+			</div>
+		</div>	<!--  class="summary" -->
+	</div>
 
-<div>
-<h2>Top Hashtags</h2>
-<ul>
-<li ng-repeat="tag in results.byHashtags">{{tag[0]}} ({{tag[1]}})</li>
-</ul>
+<!-- <div>{{results}}</div> -->
 </div>
-
-<div>
-<h3>Top Hashtags per User</h3>
-					hashtagsByUser
-<ul>
-<li ng-repeat="userTag in results.hashtagsByUser">{{userTag[0]}} ({{userTag[1]}})</li>
-</ul>
-</div>
-
-<div>{{results}}</div>
