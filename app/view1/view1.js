@@ -11,9 +11,9 @@ angular.module('myApp.view1', ['ngRoute', 'ight'])
 
 .controller('View1Ctrl', function($scope, InstagramTags) {
 	console.log("about to invoke summarizer");
-	$scope.hashtag = null;
+	$scope.tags = "";
 	$scope.maxPosts = 20;
-	$scope.untilDate = null;
+	$scope.untilDate = new Date().toISOString().slice(0,10);
 	$scope.pluck = 100;
 	var summary;
 	
@@ -67,14 +67,19 @@ angular.module('myApp.view1', ['ngRoute', 'ight'])
 	$scope.run = function() {
 		$scope.results = null;
 
-		if(!$scope.hashtag) {
+		if(_.isEmpty($scope.tags)) {
 			summary = null;
 		} else {
-			if(!summary || summary.tag != $scope.hashtag) {
-				summary = InstagramTags.summarizeTag($scope.hashtag);
+			if(!summary || $scope.originalTags != $scope.tags) {
+				$scope.originalTags = $scope.tags;
+				summary = InstagramTags.summarizeTags($scope.tags);
 			}
-			summary.maxPosts = $scope.maxPosts;
-			summary.untilDate = $scope.untilDate;
+			if($scope.maxPosts > 0) {
+				summary.maxPosts = $scope.maxPosts
+			}
+			if($scope.untilDate) {
+				summary.untilDate = new Date($scope.untilDate);
+			}
 		}
 		update();
 	};

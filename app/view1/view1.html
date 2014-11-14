@@ -1,9 +1,9 @@
 <div class="parameters">
-Hashtag: <input type="text" pattern="[a-zA-Z][a-zA-Z0-9]*"  ng-model="hashtag"><br>
+Hashtag: <input type="text" pattern="([a-zA-Z][a-zA-Z0-9]* *)+"  ng-model="tags"><br>
 Maximum posts: 
 	<input type="range" ng-model="maxPosts" min="0" max="1000">
 	({{maxPosts}})<br>
-Until: <input type="date" ng-model="untilDate"><br>
+Until: <input type="date" ng-model="untilDate" ><br>
 Show top:
 	<input type="range" ng-model="pluck" min="10" max="300">
 	({{pluck}})<br>

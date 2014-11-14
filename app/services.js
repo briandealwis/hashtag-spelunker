@@ -9,11 +9,11 @@ angular.module('ight', [])
 		template: 
 			'<div class="ig-compact">'
 			+ '<a href="{{post.link}}">' 
-			+ '<img src="{{post.images.thumbnail.url}}">'
+			+ '<img src="{{post.images.thumbnail.url}}" alt="{{post.caption.text}}">'
 			+ '</a>'
 			+ '<div class="date">{{post.created_time * 1000 | date:medium}}</div>'
 			+ '<div class="user"><a ng-href="http://instagram.com/{{post.user.username}}">{{post.user.username}}</a></div>'
-			+ '<div class="caption">{{post.caption.text}}</div>'
+			+ '<div class="tags"><span ng-repeat="tag in post.tags">#{{tag}} </span></div>'
 			+ '</div>'
 	};
 })
@@ -21,14 +21,13 @@ angular.module('ight', [])
 .service('InstagramTags', function($http, $q, InstagramAppId, _) {
 	var _ = window._;
 	
-	var InstagramTagSummary = function(tag) {
-		this.tag = tag;
+	var InstagramTagSummary = function(tags) {
+		this.tags = _.isArray(tags) ? tags : [tags];
 		
 		this.untilDate = undefined;
 		this.maxPosts = undefined;
 		
-		this.minTagId = undefined;
-		this.maxTagId = undefined;
+		this.minTagIds = {};
 		this.media = [];
 	};	
 	
@@ -52,36 +51,48 @@ angular.module('ight', [])
 	
 	InstagramTagSummary.prototype.update = function(filter) {
 		var deferred = $q.defer();
-		this.processMoreTags()
+		this.processTags()
 		.then(function success(media) {
 			deferred.resolve(summarize(filter ? _.filter(media, filter) : media));
 		});
 		return deferred.promise;
 	};
-	
+
 	/**
 	 * @return promise with the media
 	 */
-	InstagramTagSummary.prototype.processMoreTags = function() {
+	InstagramTagSummary.prototype.processTags = function() {
+		var self = this;
+		return $q.all(_.map(this.tags, this.processMoreTags, this))
+			.then(function success(result) {
+				return self.media;
+			});
+	}
+			
+		
+	/**
+	 * @return promise with the media
+	 */
+	InstagramTagSummary.prototype.processMoreTags = function(tag) {
 		var self = this;
 		// Instagram tagIds are in microseconds
-		if((this.untilDate && this.minTagId > 0 && (this.minTagId / 1000) < this.untilDate.getTime())
+		if((this.untilDate && this.minTagIds[tag] > 0 && (this.minTagIds[tag] / 1000) < this.untilDate.getTime())
 				|| (this.maxPosts > 0 && this.media.length > this.maxPosts)) {
-			console.log(this.tag + ": curtailing query with " + this.media.length + " posts total");	
+			console.log(tag + ": curtailing query with " + this.media.length + " posts total");	
 			return $q.when(this.media);
 		}
 		var params = { client_id: InstagramAppId };
-		if(this.minTagId > 0) { params.max_tag_id = this.minTagId; }
+		if(this.minTagIds[tag] > 0) { params.max_tag_id = this.minTagIds[tag]; }
 		if(this.maxPosts > 0) { params.count = (this.maxPosts - this.media.length).toString(); }
-		return $http.jsonp('https://api.instagram.com/v1/tags/' + this.tag + '/media/recent?callback=JSON_CALLBACK', {
+		return $http.jsonp('https://api.instagram.com/v1/tags/' + tag + '/media/recent?callback=JSON_CALLBACK', {
 				headers: {"Accept":undefined},
 				params: params
 			}).then(
 				function success(response) {
 					self.media = response.data.data.concat(self.media); 
-					if(response.data.pagination && (!self.minTagId || response.data.pagination.next_max_tag_id < self.minTagId)) {
-						self.minTagId = response.data.pagination.next_max_tag_id;
-						return self.processMoreTags();
+					if(response.data.pagination && (!self.minTagIds[tag] || response.data.pagination.next_max_tag_id < self.minTagIds[tag])) {
+						self.minTagIds[tag] = response.data.pagination.next_max_tag_id;
+						return self.processMoreTags(tag);
 					} else {
 						console.log(self.tag + ": no more posts; " + self.media.length + " posts total");
 						console.dir(response);
@@ -97,8 +108,11 @@ angular.module('ight', [])
 	
 	
 	return {
-		summarizeTag: function(tag) {
-			return new InstagramTagSummary(tag);
+		summarizeTags: function(tags) {
+			if(!_.isArray(tags)) {
+				tags = tags.split(/[, #]+/);
+			}
+			return new InstagramTagSummary(tags);
 		},
 	
 		/**
