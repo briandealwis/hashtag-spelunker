@@ -1,13 +1,33 @@
-<div class="parameters">
-Hashtag: <input type="text" pattern="([a-zA-Z][a-zA-Z0-9]* *)+"  ng-model="tags"><br>
-Maximum posts: 
-	<input type="range" ng-model="maxPosts" min="0" max="1000">
-	({{maxPosts}})<br>
-Until: <input type="date" ng-model="untilDate" ><br>
-Show top:
-	<input type="range" ng-model="pluck" min="10" max="300">
-	({{pluck}})<br>
-<button ng-click="run()">Run</button>
+<div class="parameters container">
+<form role="form" class="form-horizontal">
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Hashtag(s)</label>
+			<div class="col-xs-8">
+				 <input type="text" class="form-control input-normal" pattern="([a-zA-Z][a-zA-Z0-9]* *)+"  ng-model="tags"><br>
+			</div>
+		 </div>
+		 <div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Limit to most recent posts</label> 
+			<div class="col-xs-8">
+				<input type="number" class=" form-control"  ng-model="maxPosts" min="0" max="1000">
+			</div>
+		</div>
+		 <div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Start date</label>
+			<div class="col-xs-8">
+				<input type="date" class="form-control" ng-model="untilDate" >
+			</div>
+		</div>
+		 <div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Show at most</label>
+			<div class="col-xs-8">			
+				<input type="number" ng-model="pluck" class="form-control" min="10" max="300">
+			</div>
+		</div>
+		<div class="form-group">
+			<button type="submit" class="btn btn-primary col-xs-offset-4" ng-click="run()">Run</button>
+		</div>
+</form>
 </div>
 <div ng-if="results">
 	<div>
@@ -29,36 +49,50 @@ Show top:
 		</div>
 	</div>
 	<div>
+		<div class="summary container">
+			<div class="row">
+				<div class="topUsers col-sm-4">
+					<table class="table table-condensed">
+						<caption>Top Users</caption>
+						<tr><th>Handle</th> <th>Count</th></tr>
+						<tr ng-repeat="user in results.byUsers">
+							<td><span ng-click="showPostsFromUser(user[0])">{{user[0]}}</span></td>
+							<td>{{user[1]}}</td>
+						</tr>
+					</table>
+				</div>
+				
+				<div class="topHashtags col-sm-4">
+					<table class="table table-condensed">
+						<caption>Top Hashtags</caption>
+						<tr><th>Tag</th> <th>Count</th></tr>
+						<tr ng-repeat="tag in results.byHashtags">
+							<td><span ng-click="showPostsWithTag(tag[0])">{{tag[0]}}</span></td>
+							<td>{{tag[1]}}</td>
+						</tr>
+					</table>
+				</div>
+			
+				<div class="topHashtagPerUser col-sm-4">
+					<table class="table table-condensed">
+						<caption>Top Hashtags per User</caption>
+						<tr><th>Tag</th> <th>Count</th></tr>
+						<tr ng-repeat="userTag in results.hashtagsByUser">
+							<td><span ng-click="showPostsFromUserWithTag(userTag[0])">{{userTag[0]}}</span></td>
+							 <td>{{userTag[1]}}</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+			
+		</div>	<!--  class="summary" -->
 		<div class="lightbox">
 			<h2>Highlights: {{highlightText}}</h2>
 			<ul>
 				<li ng-repeat="post in highlightedPosts"><ig-compact content="post"></ig-compact></li>
 			</ul>
 		</div>
-		<div class="summary">
-			<div class="topUsers">
-				<h2>Top Users</h2>
-				<ul>
-				<li ng-repeat="user in results.byUsers">
-					<span ng-click="showPostsFromUser(user[0])">{{user[0]}}</span> ({{user[1]}})</li>
-				</ul>
-			</div>
-			<div class="topHashtags">
-				<h2>Top Hashtags</h2>
-				<ul>
-				<li ng-repeat="tag in results.byHashtags">
-					<span ng-click="showPostsWithTag(tag[0])">{{tag[0]}}</span> ({{tag[1]}})</li>
-				</ul>
-			</div>
 		
-			<div class="topHashtagPerUser">
-				<h2>Top Hashtags per User</h2>
-				<ul>
-				<li ng-repeat="userTag in results.hashtagsByUser">
-					<span ng-click="showPostsFromUserWithTag(userTag[0])">{{userTag[0]}}</span> ({{userTag[1]}})</li>
-				</ul>
-			</div>
-		</div>	<!--  class="summary" -->
 	</div>
 
 <!-- <div>{{results}}</div> -->

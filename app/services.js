@@ -1,4 +1,7 @@
-angular.module('ight', [])
+angular.module('ight', [
+                        'ui.bootstrap'
+])
+
 .constant('_', window._)
 .constant('InstagramAppId', 'f05f03002ba04cb48c65c7ddae75def1')
 
@@ -11,9 +14,9 @@ angular.module('ight', [])
 			+ '<a href="{{post.link}}">' 
 			+ '<img src="{{post.images.thumbnail.url}}" alt="{{post.caption.text}}">'
 			+ '</a>'
-			+ '<div class="date">{{post.created_time * 1000 | date:medium}}</div>'
-			+ '<div class="user"><a ng-href="http://instagram.com/{{post.user.username}}">{{post.user.username}}</a></div>'
-			+ '<div class="tags"><span ng-repeat="tag in post.tags">#{{tag}} </span></div>'
+			+ '<div class="date text-muted">{{post.created_time * 1000 | date:medium}}</div>'
+			+ '<div class="user text-muted"><a ng-href="http://instagram.com/{{post.user.username}}">{{post.user.username}}</a></div>'
+			+ '<div class="tags"><ul class="list-inline"><li ng-repeat="tag in post.tags">#{{tag}} </li></ul></div>'
 			+ '</div>'
 	};
 })

@@ -1,6 +1,6 @@
 'use strict';
 
-angular.module('myApp.view1', ['ngRoute', 'ight'])
+angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 
 .config(['$routeProvider', function($routeProvider) {
   $routeProvider.when('/view1', {
@@ -12,7 +12,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight'])
 .controller('View1Ctrl', function($scope, InstagramTags) {
 	console.log("about to invoke summarizer");
 	$scope.tags = "";
-	$scope.maxPosts = 20;
+	$scope.maxPosts = 0;
 	$scope.untilDate = new Date().toISOString().slice(0,10);
 	$scope.pluck = 100;
 	var summary;
@@ -45,23 +45,27 @@ angular.module('myApp.view1', ['ngRoute', 'ight'])
 		return usertag.split(':')[0];
 	};
 	
+	function showPosts(title, posts) {
+		$scope.highlightText = title;
+		$scope.highlightedPosts = posts;
+		
+	}
+	
 	$scope.showPostsFromUser = function(username) {
-		$scope.highlightText = "Posts from " + username;
-		$scope.highlightedPosts = _.filter(summary.media,
-			function(m) { return m.user.username == username; });
+		showPosts("Posts from " + username,
+			_.filter(summary.media, function(m) { return m.user.username == username; }));
 	};
 	$scope.showPostsWithTag = function(tag) {
-		$scope.highlightText = 'Posts with #' + $scope.hashtag + " #" + tag;
-		$scope.highlightedPosts = _.filter(summary.media,
-			function(m) { return _.contains(m.tags, tag); });
+		showPosts('Posts with #' + $scope.hashtag + " #" + tag,
+			_.filter(summary.media, function(m) { return _.contains(m.tags, tag); }));
 	};
 	$scope.showPostsFromUserWithTag = function(userTag) {
 		var username = userTag.split(':')[0];
 		var tag = userTag.split(':')[1];
-		$scope.highlightText = 'From ' + username + " with #" + tag;
-		$scope.highlightedPosts = _.filter(summary.media,
-			function(m) { return m.user.username == username
-				&& _.contains(m.tags, tag); });
+		showPosts('From ' + username + " with #" + tag, 
+				_.filter(summary.media,
+						function(m) { return m.user.username == username
+							&& _.contains(m.tags, tag); }));
 	};
 	
 	$scope.run = function() {
