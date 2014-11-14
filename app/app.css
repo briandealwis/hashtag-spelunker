@@ -3,6 +3,17 @@
 /* keep bootstrap happy re: angular-bootstrap */
 .nav, .pagination, .carousel, .panel-title a { cursor: pointer; }
 
+.ig-compact {
+	width: 160px;
+	border: 0.1em solid grey;
+	padding: 4px;
+	vertical-align: top;
+}
+
+.summary table .count {
+	text-align: right;
+}
+
 .menu {
   list-style: none;
   border-bottom: 0.1em solid black;

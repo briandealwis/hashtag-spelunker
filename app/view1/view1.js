@@ -9,7 +9,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
   });
 }])
 
-.controller('View1Ctrl', function($scope, InstagramTags) {
+.controller('View1Ctrl', function($scope, $modal, InstagramTags) {
 	console.log("about to invoke summarizer");
 	$scope.tags = "";
 	$scope.maxPosts = 0;
@@ -41,14 +41,36 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 		}
 	}
 
-	$scope.extractUsername = function(usertag) {
+	$scope.extractHandle = function(usertag) {
 		return usertag.split(':')[0];
+	};
+	$scope.extractTag = function(usertag) {
+		return usertag.split(':')[1];
 	};
 	
 	function showPosts(title, posts) {
+		console.log("show posts: " + title);
 		$scope.highlightText = title;
 		$scope.highlightedPosts = posts;
-		
+		var newScope = $scope.$new();
+		newScope.title = title;
+		newScope.posts = posts;
+		$modal.open({
+//			resolve: {
+//				title: function() { return title; },
+//				posts: function() { return posts; }
+//			},
+			scope: newScope,
+			//controller: 'View1Ctrl',
+			template: 
+						'<div class="modal-header"><h3>{{title}}</h3></div>'
+						+ '<div class="modal-body"><ul class="list-inline">'
+						+ '<li ng-repeat="post in posts" style="vertical-align: top;">'
+						+ '  <ig-compact content="post"></ig-compact>'
+						+ '</li>'
+						+ '</div>'
+						+ '<div class="modal-footer"><button class="btn btn-primary" ng-click="$close()">Close</button></div>'
+		});
 	}
 	
 	$scope.showPostsFromUser = function(username) {
