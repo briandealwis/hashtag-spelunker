@@ -2,12 +2,12 @@
 
 angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 
-.config(['$routeProvider', function($routeProvider) {
+.config(function($routeProvider) {
   $routeProvider.when('/view1', {
     templateUrl: 'view1/view1.html',
     controller: 'View1Ctrl'
   });
-}])
+})
 
 .controller('View1Ctrl', function($scope, $modal, InstagramTags) {
 	console.log("about to invoke summarizer");
@@ -17,9 +17,11 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 	$scope.pluck = 100;
 	var summary;
 	
-	function pluckTop(bag, count) {
+	function pluckTop(results, count) {
 		var _ = window._;
-		return _.chain(bag).pairs().sortBy(function(p) { return -p[1]; }).first(count).value();
+		return _.chain(results)
+				.sortBy(function(r) { return -r.count; })
+				.first(count).value();
 	}
 	
 	function update() {
@@ -41,13 +43,6 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 		}
 	}
 
-	$scope.extractHandle = function(usertag) {
-		return usertag.split(':')[0];
-	};
-	$scope.extractTag = function(usertag) {
-		return usertag.split(':')[1];
-	};
-	
 	function showPosts(title, posts) {
 		console.log("show posts: " + title);
 		$scope.highlightText = title;
@@ -81,12 +76,10 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 		showPosts('Posts with #' + $scope.hashtag + " #" + tag,
 			_.filter(summary.media, function(m) { return _.contains(m.tags, tag); }));
 	};
-	$scope.showPostsFromUserWithTag = function(userTag) {
-		var username = userTag.split(':')[0];
-		var tag = userTag.split(':')[1];
-		showPosts('From ' + username + " with #" + tag, 
+	$scope.showPostsFromUserWithTag = function(handle, tag) {
+		showPosts('From ' + handle + " with #" + tag, 
 				_.filter(summary.media,
-						function(m) { return m.user.username == username
+						function(m) { return m.user.username == handle
 							&& _.contains(m.tags, tag); }));
 	};
 	

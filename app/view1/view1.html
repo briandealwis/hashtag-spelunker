@@ -3,7 +3,7 @@
 		<div class="form-group form-group-sm">
 			<label class="col-xs-4 control-label">Hashtag(s)</label>
 			<div class="col-xs-8">
-				 <input type="text" class="form-control input-normal" pattern="([a-zA-Z][a-zA-Z0-9]* *)+"  ng-model="tags"><br>
+				 <input type="text" class="form-control input-normal" pattern="([a-zA-Z][a-zA-Z0-9]* *)+"  ng-model="tags" autofocus><br>
 			</div>
 		 </div>
 		 <div class="form-group form-group-sm">
@@ -48,9 +48,10 @@
 					<table class="table table-condensed">
 						<caption>Top Users</caption>
 						<tr><th class="handle">Handle</th> <th class="count">Count</th></tr>
-						<tr ng-repeat="user in results.byUsers">
-							<td class="handle"><span ng-click="showPostsFromUser(user[0])">{{user[0]}}</span></td>
-							<td class="count">{{user[1]}}</td>
+						<tr><td colspan="2"><input type="search" ng-model="searchByHandle.handle" placeholder="filter by user"></td><td/></tr>
+						<tr ng-repeat="result in results.byUsers | filter:searchByHandle">
+							<td class="handle"><span ng-click="showPostsFromUser(result.handle)">{{result.handle}}</span></td>
+							<td class="count">{{result.count}}</td>
 						</tr>
 					</table>
 				</div>
@@ -59,9 +60,10 @@
 					<table class="table table-condensed">
 						<caption>Top Hashtags</caption>
 						<tr><th class="tag">Tag</th> <th class="count">Count</th></tr>
-						<tr ng-repeat="tag in results.byHashtags">
-							<td class="tag"><span ng-click="showPostsWithTag(tag[0])">{{tag[0]}}</span></td>
-							<td class="count">{{tag[1]}}</td>
+						<tr><td colspan="2"><input type="search" ng-model="searchByTag.tag" placeholder="filter by tag"></td><td/></tr>
+						<tr ng-repeat="result in results.byHashtags | filter:searchByTag">
+							<td class="tag"><span ng-click="showPostsWithTag(result.tag)">{{result.tag}}</span></td>
+							<td class="count">{{result.count}}</td>
 						</tr>
 					</table>
 				</div>
@@ -70,10 +72,14 @@
 					<table class="table table-condensed">
 						<caption>Top Hashtags per User</caption>
 						<tr><th class="handle">Handle</th> <th class="tag">Tag</th> <th class="count">Count</th></tr>
-						<tr ng-repeat="userTag in results.hashtagsByUser">
-							<td class="handle"><span ng-click="showPostsFromUserWithTag(userTag[0])">{{extractHandle(userTag[0])}}</span></td>
-							<td class="tag"><span ng-click="showPostsFromUserWithTag(userTag[0])">{{extractTag(userTag[0])}}</span></td>
-							 <td class="count">{{userTag[1]}}</td>
+						<tr>
+							<td><input type="search" ng-model="searchByHandleCount.handle" placeholder="filter by user"></td>
+							<td><input type="search" ng-model="searchByHandleCount.tag" placeholder="filter by tag"></td>
+							<td/></tr>		
+						<tr ng-repeat="result in results.hashtagsByUser | filter:searchByHandleCount">
+							<td class="handle"><span ng-click="showPostsFromUserWithTag(result.handle,result.tag)">{{result.handle}}</span></td>
+							<td class="tag"><span ng-click="showPostsFromUserWithTag(result.handle,result.tag)">{{result.tag}}</span></td>
+							 <td class="count">{{result.count}}</td>
 						</tr>
 					</table>
 				</div>

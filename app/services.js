@@ -37,11 +37,24 @@ angular.module('ight', [
 	function summarize(media) {
 		console.log("summarize: " + media.length);
 		media = _.sortBy(media, function(m) { return m.created_time * 1; });
-		var countByUsers = _.countBy(media, function(m) { return m.user.username; });
-		var countByHashtags = _.chain(media).pluck('tags').flatten().countBy(_.identity).value();
-		var countHashtagsByUser = _.chain(media).map(function(m) {
-				return _.map(m.tags, function(t) { return m.user.username + ":" + t; });
-			}).flatten().countBy(_.identity).value();
+		var countByUsers = _.chain(media)
+				.countBy(function(m) { return m.user.username; })
+				.map(function(count, username) { return { handle: username, count: count }; })
+				.sortBy(function(result) { return -result.count; })
+				.value();
+		var countByHashtags = _.chain(media)
+				.pluck('tags').flatten()
+				.countBy(_.identity)
+				.map(function(count, tag) { return { tag: tag, count: count }; })
+				.sortBy(function(result) { return -result.count; })
+				.value();
+		var countHashtagsByUser = _.chain(media)
+				.map(function(m) { return _.map(m.tags, function(t) { return m.user.username + ":" + t; }); })
+				.flatten()
+				.countBy(_.identity)
+				.map(function(count, usertag) { return { handle: usertag.split(':')[0], tag: usertag.split(':')[1], count: count }; })
+				.sortBy(function(result) { return -result.count; })
+				.value();
 		// FIXME: retain and combine these results with existing results?
 		return { 
 			earliest: _.first(media),
