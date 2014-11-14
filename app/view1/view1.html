@@ -21,7 +21,7 @@
 		 <div class="form-group form-group-sm">
 			<label class="col-xs-4 control-label">Show at most</label>
 			<div class="col-xs-8">			
-				<input type="number" ng-model="pluck" class="form-control" min="10" max="300">
+				<input type="number" ng-model="pluck" class="form-control" min="10" max="1000">
 			</div>
 		</div>
 		<div class="form-group">
@@ -49,7 +49,7 @@
 						<caption>Top Users</caption>
 						<tr><th class="handle">Handle</th> <th class="count">Count</th></tr>
 						<tr><td colspan="2"><input type="search" ng-model="searchByHandle.handle" placeholder="filter by user"></td><td/></tr>
-						<tr ng-repeat="result in results.byUsers | filter:searchByHandle">
+						<tr ng-repeat="result in results.byUsers | filter:searchByHandle | limitTo:pluck">
 							<td class="handle"><span ng-click="showPostsFromUser(result.handle)">{{result.handle}}</span></td>
 							<td class="count">{{result.count}}</td>
 						</tr>
@@ -61,7 +61,7 @@
 						<caption>Top Hashtags</caption>
 						<tr><th class="tag">Tag</th> <th class="count">Count</th></tr>
 						<tr><td colspan="2"><input type="search" ng-model="searchByTag.tag" placeholder="filter by tag"></td><td/></tr>
-						<tr ng-repeat="result in results.byHashtags | filter:searchByTag">
+						<tr ng-repeat="result in results.byHashtags | filter:searchByTag | limitTo:pluck">
 							<td class="tag"><span ng-click="showPostsWithTag(result.tag)">{{result.tag}}</span></td>
 							<td class="count">{{result.count}}</td>
 						</tr>
@@ -76,7 +76,7 @@
 							<td><input type="search" ng-model="searchByHandleCount.handle" placeholder="filter by user"></td>
 							<td><input type="search" ng-model="searchByHandleCount.tag" placeholder="filter by tag"></td>
 							<td/></tr>		
-						<tr ng-repeat="result in results.hashtagsByUser | filter:searchByHandleCount">
+						<tr ng-repeat="result in results.hashtagsByUser | filter:searchByHandleCount | limitTo:pluck">
 							<td class="handle"><span ng-click="showPostsFromUserWithTag(result.handle,result.tag)">{{result.handle}}</span></td>
 							<td class="tag"><span ng-click="showPostsFromUserWithTag(result.handle,result.tag)">{{result.tag}}</span></td>
 							 <td class="count">{{result.count}}</td>

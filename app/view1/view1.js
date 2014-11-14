@@ -9,20 +9,17 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
   });
 })
 
+.controller('PostsCtrl', function($scope) {
+})
+
+
 .controller('View1Ctrl', function($scope, $modal, InstagramTags) {
 	console.log("about to invoke summarizer");
 	$scope.tags = "";
-	$scope.maxPosts = 0;
+	$scope.maxPosts = 200;
 	$scope.untilDate = new Date().toISOString().slice(0,10);
 	$scope.pluck = 100;
 	var summary;
-	
-	function pluckTop(results, count) {
-		var _ = window._;
-		return _.chain(results)
-				.sortBy(function(r) { return -r.count; })
-				.first(count).value();
-	}
 	
 	function update() {
 		if(summary) {
@@ -32,11 +29,13 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 							media: summary.media,
 							earliest: results.earliest,
 							latest: results.latest,
-							byUsers: pluckTop(results.byUsers, $scope.pluck), 
-							byHashtags: pluckTop(results.byHashtags, $scope.pluck), 
-							hashtagsByUser: pluckTop(results.hashtagsByUser, $scope.pluck)
+							byUsers: results.byUsers, 
+							byHashtags: results.byHashtags, 
+							hashtagsByUser: results.hashtagsByUser
 					};
 					console.dir($scope.results);
+				}, function error(err) {
+					console.log("UHOH: " + err);
 				});
 		} else {
 			$scope.results = null;
@@ -56,7 +55,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 //				posts: function() { return posts; }
 //			},
 			scope: newScope,
-			//controller: 'View1Ctrl',
+			controller: 'PostsCtrl',
 			template: 
 						'<div class="modal-header"><h3>{{title}}</h3></div>'
 						+ '<div class="modal-body"><ul class="list-inline">'
