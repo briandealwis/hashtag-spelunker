@@ -7,11 +7,31 @@
 	width: 160px;
 	border: 0.1em solid grey;
 	padding: 4px;
-	vertical-align: top;
 }
 
 .summary table .count {
 	text-align: right;
+}
+
+.hoverable-content-container {
+	position: relative;
+}
+.hoverable-content {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	visibility: hidden;
+	opacity: 0;
+}
+.hoverable-content-container:hover .hoverable-content {
+	visibility: visible;
+	opacity: 0.9;
+}
+
+.ig-compact .popover-content {
+	word-wrap: break-word;
 }
 
 .menu {

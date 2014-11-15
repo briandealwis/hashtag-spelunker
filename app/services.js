@@ -10,9 +10,11 @@ angular.module('ight', [
 		restrict: 'E',
 		scope: { post: '=content' },
 		template: 
-			'<div class="ig-compact">'
+			'<div class="ig-compact ">'
 			+ '<a href="{{post.link}}" target="_blank">' 
+			+ '<div popover="{{post.caption.text}}" popover-trigger="mouseenter">'
 			+ '<img src="{{post.images.thumbnail.url}}" ng-alt="{{post.caption.text}}">'
+			+ '</div>'
 			+ '</a>'
 			+ '<div class="date text-muted">{{post.created_time * 1000 | date:medium}}</div>'
 			+ '<div class="user text-muted"><a ng-href="http://instagram.com/{{post.user.username}}" target="_blank">{{post.user.username}}</a></div>'

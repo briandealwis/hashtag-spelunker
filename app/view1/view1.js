@@ -72,7 +72,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 			_.filter(summary.media, function(m) { return m.user.username == username; }));
 	};
 	$scope.showPostsWithTag = function(tag) {
-		showPosts('Posts with #' + $scope.hashtag + " #" + tag,
+		showPosts('Posts with  #' + tag,
 			_.filter(summary.media, function(m) { return _.contains(m.tags, tag); }));
 	};
 	$scope.showPostsFromUserWithTag = function(handle, tag) {
