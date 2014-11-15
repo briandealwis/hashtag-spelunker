@@ -10,6 +10,54 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 })
 
 .controller('PostsCtrl', function($scope) {
+	$scope.countByHashtags 	= _.chain($scope.posts)
+		.pluck('tags').flatten()
+		.countBy(_.identity)
+		.value();
+
+	$scope.uniqueTags = 	_.chain($scope.countByHashtags)
+			.pairs()
+			.sortBy(function(p) { return -p[1]; })
+			.map(function(p) { return p[0]; })
+			.value();
+
+	$scope.filteringTags = [];
+	$scope.selectedTags = function(post) {
+		if($scope.filteringTags.length == 0) { return true; }
+		return _.every($scope.filteringTags, function(t) { return _.contains(post.tags, t); }); 
+	};
+	var oldFP;
+	$scope.$watch('posts | filter:selectedTags | filter:search', function (filteredPosts) {
+		console.log("watch executed");
+		if(!_.isEqual(filteredPosts, oldFP)) {
+			console.log("watch: changed countByHashtags");
+		    $scope.countByHashtags 	= _.chain(filteredPosts)
+				.pluck('tags').flatten()
+				.countBy(_.identity)
+				.value();
+		}
+	  }, true);
+	$scope.count = function(tag) { 
+		return $scope.countByHashtags[tag] ? $scope.countByHashtags[tag] : 0; 
+	};
+	$scope.tagButtonClass = function(tag) {
+		if($scope.countByHashtags[tag]) {
+			return _.contains($scope.filteringTags, tag) ? "btn-primary" : "btn-default";
+		} else {
+			return "btn-default disabled";
+		}
+	};
+	
+	$scope.toggleTag = function(tag) {
+		var index = $scope.filteringTags.indexOf(tag);
+		if(index >= 0) {
+			console.log("removing tag filter: " + tag);
+			$scope.filteringTags.splice(index, 1);
+		} else {
+			console.log("add tag filter: " + tag);
+			$scope.filteringTags.push(tag);
+		}
+	};
 })
 
 
@@ -49,8 +97,6 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 
 	function showPosts(title, posts) {
 		console.log("show posts: " + title);
-		$scope.highlightText = title;
-		$scope.highlightedPosts = posts;
 		var newScope = $scope.$new();
 		newScope.title = title;
 		newScope.posts = posts;
@@ -62,10 +108,16 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 			scope: newScope,
 			controller: 'PostsCtrl',
 			template: 
-						'<div class="modal-header"><h4>{{title}}</h4></div>'
+						'<div class="modal-header"><h4>{{title}} ({{posts.length}})</h4></div>'
 						+ '<div class="modal-body">'
+						+ '<p>'
+						+ '  <a href class="btn btn-xs" ng-repeat="tag in uniqueTags" ng-click="toggleTag(tag)" ng-class="tagButtonClass(tag)">'
+						+ '{{tag}} ({{count(tag)}})'
+						+ '</a>'
+						+ '</p>'
+						+ '<p><label>Filter:</label> <input type="search" ng-model="search.tags" placeholder="filter by tag"></p>'
 						+ '<ul class="list-inline">'
-						+ '<li ng-repeat="post in posts" style="vertical-align: top;">'
+						+ '<li ng-repeat="post in posts | filter:selectedTags | filter:search" style="vertical-align: top;">'
 						+ '  <ig-compact content="post"></ig-compact>'
 						+ '</li>'
 						+ '</div>'
