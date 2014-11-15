@@ -16,8 +16,8 @@ angular.module('ight', [
 			+ '<img src="{{post.images.thumbnail.url}}" ng-alt="{{post.caption.text}}">'
 			+ '</div>'
 			+ '</a>'
-			+ '<div class="date text-muted">{{post.created_time * 1000 | date:medium}}</div>'
-			+ '<div class="user text-muted"><a ng-href="http://instagram.com/{{post.user.username}}" target="_blank">{{post.user.username}}</a></div>'
+			+ '<div class="date text-muted"><span class="glyphicon glyphicon-time" aria-hidden="true"></span> {{post.created_time * 1000 | date:medium}}</div>'
+			+ '<div class="user text-muted"><span class="glyphicon glyphicon-user" aria-hidden="true"></span> <a ng-href="http://instagram.com/{{post.user.username}}" target="_blank">{{post.user.username}}</a></div>'
 			+ '<div class="tags"><ul class="list-inline"><li ng-repeat="tag in post.tags">#{{tag}} </li></ul></div>'
 			+ '</div>'
 	};
