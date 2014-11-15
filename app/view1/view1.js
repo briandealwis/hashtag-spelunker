@@ -23,7 +23,11 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 	
 	function update() {
 		if(summary) {
-			summary.update().then(
+			$scope.progress = 0;
+			$scope.running = true;
+			summary.update(function(value) {
+				$scope.progress = Math.floor(value);
+			}).then(
 				function success(results) {
 					$scope.results = {
 							media: summary.media,
@@ -33,9 +37,10 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 							byHashtags: results.byHashtags, 
 							hashtagsByUser: results.hashtagsByUser
 					};
-					console.dir($scope.results);
 				}, function error(err) {
 					console.log("UHOH: " + err);
+				}).finally(function() {
+					$scope.running = false;
 				});
 		} else {
 			$scope.results = null;
@@ -57,8 +62,9 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 			scope: newScope,
 			controller: 'PostsCtrl',
 			template: 
-						'<div class="modal-header"><h3>{{title}}</h3></div>'
-						+ '<div class="modal-body"><ul class="list-inline">'
+						'<div class="modal-header"><h4>{{title}}</h4></div>'
+						+ '<div class="modal-body">'
+						+ '<ul class="list-inline">'
 						+ '<li ng-repeat="post in posts" style="vertical-align: top;">'
 						+ '  <ig-compact content="post"></ig-compact>'
 						+ '</li>'
@@ -84,7 +90,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 	
 	$scope.run = function() {
 		$scope.results = null;
-
+		
 		if(_.isEmpty($scope.tags)) {
 			summary = null;
 		} else {

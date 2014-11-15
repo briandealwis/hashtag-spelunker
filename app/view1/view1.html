@@ -32,6 +32,9 @@
 		</div>
 </form>
 </div>
+<div ng-if="running && !results">
+	<progress><bar value="progress"><span ng-hide="progress < 5">{{progress}}%</span></bar></progress>
+</div>
 <div ng-if="results" class="results">
 	<div>
 		<h1>Results</h1>

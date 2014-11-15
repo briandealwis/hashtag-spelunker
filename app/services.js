@@ -36,20 +36,24 @@ angular.module('ight', [
 		this.media = [];
 	};	
 	
-	function summarize(media) {
-		console.log("summarize: " + media.length);
+	function summarize(media, progress) {
+		console.log("summarizing " + media.length + " posts");
+		progress(0);
 		media = _.sortBy(media, function(m) { return m.created_time * 1; });
+		progress(25);
 		var countByUsers = _.chain(media)
 				.countBy(function(m) { return m.user.username; })
 				.map(function(count, username) { return { handle: username, count: count }; })
 				.sortBy(function(result) { return -result.count; })
 				.value();
+		progress(50);
 		var countByHashtags = _.chain(media)
 				.pluck('tags').flatten()
 				.countBy(_.identity)
 				.map(function(count, tag) { return { tag: tag, count: count }; })
 				.sortBy(function(result) { return -result.count; })
 				.value();
+		progress(75);
 		var countHashtagsByUser = _.chain(media)
 				.map(function(m) { return _.map(m.tags, function(t) { return m.user.username + ":" + t; }); })
 				.flatten()
@@ -57,6 +61,7 @@ angular.module('ight', [
 				.map(function(count, usertag) { return { handle: usertag.split(':')[0], tag: usertag.split(':')[1], count: count }; })
 				.sortBy(function(result) { return -result.count; })
 				.value();
+		progress(100);
 		// FIXME: retain and combine these results with existing results?
 		return { 
 			earliest: _.first(media),
@@ -67,11 +72,16 @@ angular.module('ight', [
 		};
 	}
 	
-	InstagramTagSummary.prototype.update = function(filter) {
+	InstagramTagSummary.prototype.update = function(progress, filter) {
 		var deferred = $q.defer();
-		this.processTags()
+		var self = this;
+		this.progress = progress ? progress : function(value) {};
+		this.processTags(progress)
 		.then(function success(media) {
-			deferred.resolve(summarize(filter ? _.filter(media, filter) : media));
+			if(self.maxPosts > 0) { media = _.last(media, self.maxPosts); }
+			deferred.resolve(summarize(filter ? _.filter(media, filter) : media, 
+					function(v) { self.progress(90 + 10 * (v / 100)); }));
+			self.progress = null;
 		});
 		return deferred.promise;
 	};
@@ -95,7 +105,7 @@ angular.module('ight', [
 		var self = this;
 		// Instagram tagIds are in microseconds
 		if((this.untilDate && this.minTagIds[tag] > 0 && (this.minTagIds[tag] / 1000) < this.untilDate.getTime())
-				|| (this.maxPosts > 0 && this.media.length > this.maxPosts)) {
+				|| (this.maxPosts > 0 && this.media.length >= this.maxPosts)) {
 			console.log(tag + ": curtailing query with " + this.media.length + " posts total");	
 			return $q.when(this.media);
 		}
@@ -106,8 +116,16 @@ angular.module('ight', [
 				headers: {"Accept":undefined},
 				params: params
 			}).then(
-				function success(response) {
+				function success(response) {					
 					self.media = response.data.data.concat(self.media); 
+					if(self.maxPosts > 0) {
+						self.progress(90 * self.media.length / self.maxPosts);
+					} else if(self.untilDate && response.data.pagination.next_max_tag_id) {
+						var d = new Date().getTime();
+						var until = self.untilDate.getTime();
+						var position = response.data.pagination.next_max_tag_id / 1000;
+						self.progress(90 * (d - position) / (d - until));
+					}
 					if(response.data.pagination && (!self.minTagIds[tag] || response.data.pagination.next_max_tag_id < self.minTagIds[tag])) {
 						self.minTagIds[tag] = response.data.pagination.next_max_tag_id;
 						return self.processMoreTags(tag);
