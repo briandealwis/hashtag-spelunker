@@ -77,16 +77,14 @@ angular.module('ight', [
 	}
 	
 	InstagramTagSummary.prototype.update = function(progress, filter) {
-		var deferred = $q.defer();
 		var self = this;
 		this.progress = progress ? progress : function(value) {};
-		this.processTags(progress)
+		return this.processTags(progress)
 		.then(function success(media) {
 			if(self.maxPosts > 0) { media = _.last(media, self.maxPosts); }
-			deferred.resolve(summarize(filter ? _.filter(media, filter) : media, 
-					function(v) { self.progress(90 + 10 * (v / 100)); }));
-			self.progress = null;
-		});
+			return summarize(filter ? _.filter(media, filter) : media, 
+					function(v) { self.progress(90 + 10 * (v / 100)); });
+		}).finally(function() { self.progress = null; });
 		return deferred.promise;
 	};
 
@@ -126,6 +124,11 @@ angular.module('ight', [
 				params: params
 			}).then(
 				function success(response) {
+					if(response.data.meta.code == 400) {
+						console.log("error: could not fetch tag details: " + JSON.stringify(response.data.meta));
+						return $q.reject(response.data.meta);
+					}
+					
 					for(var i = 0; i < response.data.data.length; i++) {
 						var post = response.data.data[i];
 						if(!self.posts[post.id]) {

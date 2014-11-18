@@ -96,7 +96,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 							hashtagsByUser: results.hashtagsByUser
 					};
 				}, function error(err) {
-					console.log("UHOH: " + err);
+					alert("An error occurred: " + JSON.stringify(err));
 				}).finally(function() {
 					$scope.running = false;
 				});
