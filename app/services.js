@@ -110,10 +110,10 @@ angular.module('ight', [
 		var self = this;
 		// Instagram tagIds are in microseconds
 		if(this.untilDate && this.minTagIds[tag] > 0 && (this.minTagIds[tag] / 1000) < this.untilDate.getTime()) {
-			console.log(tag + ": curtailing query as hit until date");	
+			console.log(tag + ": curtailing query as hit until date with " + this.postsCount + " posts total");
 			return $q.when(null);
 		} else if(this.maxPosts > 0 && this.postsCount >= this.maxPosts) {
-			console.log(tag + ": curtailing query with " + this.postsCount + " posts total");	
+			console.log(tag + ": curtailing query with " + this.postsCount + " posts total");
 			return $q.when(null);
 		}
 		var params = { client_id: InstagramAppId };
@@ -129,6 +129,9 @@ angular.module('ight', [
 						return $q.reject(response.data.meta);
 					}
 					
+					console.log(tag + ": received " + response.data.data.length + " posts [min:"
+						+ (response.data.pagination.min_tag_id ?  response.data.pagination.min_tag_id : "?") + ", max:"
+						+ (response.data.pagination.max_tag_id ?  response.data.pagination.max_tag_id : "?") + "]");
 					for(var i = 0; i < response.data.data.length; i++) {
 						var post = response.data.data[i];
 						if(!self.posts[post.id]) {
@@ -150,7 +153,6 @@ angular.module('ight', [
 						return self.processMoreTags(tag);
 					} else {
 						console.log(self.tag + ": no more posts; " + this.postsCount + " posts total");
-						console.dir(response);
 						return $q.when(null);
 					}
 				},
