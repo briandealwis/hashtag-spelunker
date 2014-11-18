@@ -10,6 +10,11 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 })
 
 .controller('PostsCtrl', function($scope) {
+	function descendingSortKey(count, secondary) {
+		// encode the count as a negative integer, padded with 0s for sort
+		return (100000 - count).toString() + secondary;
+	}
+
 	$scope.countByHashtags 	= _.chain($scope.posts)
 		.pluck('tags').flatten()
 		.countBy(_.identity)
@@ -17,7 +22,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 
 	$scope.uniqueTags = 	_.chain($scope.countByHashtags)
 			.pairs()
-			.sortBy(function(p) { return -p[1]; })
+			.sortBy(function(p) { return descendingSortKey(p[1], p[0]); })
 			.map(function(p) { return p[0]; })
 			.value();
 
@@ -34,6 +39,11 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 		    $scope.countByHashtags 	= _.chain(filteredPosts)
 				.pluck('tags').flatten()
 				.countBy(_.identity)
+				.value();
+			$scope.uniqueTags = 	_.chain($scope.countByHashtags)
+				.pairs()
+				.sortBy(function(p) { return descendingSortKey(p[1], p[0]); })
+				.map(function(p) { return p[0]; })
 				.value();
 		}
 	  }, true);
@@ -110,12 +120,12 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 			template: 
 						'<div class="modal-header"><h4>{{title}} ({{posts.length}})</h4></div>'
 						+ '<div class="modal-body">'
+						+ '<p><label>Filter:</label> <input type="search" ng-model="search.tags" placeholder="filter by tag"></p>'
 						+ '<p>'
 						+ '  <a href class="btn btn-xs" ng-repeat="tag in uniqueTags" ng-click="toggleTag(tag)" ng-class="tagButtonClass(tag)">'
 						+ '{{tag}} ({{count(tag)}})'
 						+ '</a>'
 						+ '</p>'
-						+ '<p><label>Filter:</label> <input type="search" ng-model="search.tags" placeholder="filter by tag"></p>'
 						+ '<ul class="list-inline">'
 						+ '<li ng-repeat="post in posts | filter:selectedTags | filter:search" style="vertical-align: top;">'
 						+ '  <ig-compact content="post"></ig-compact>'
