@@ -72,10 +72,10 @@ angular.module('ight', [
 				.sortBy(function(result) { return descendingSortKey(result.count, result.handle + result.tag); })
 				.value();
 		progress(100);
-		// FIXME: retain and combine these results with existing results?
+		// Note that we sort the media in inverse order 
 		return { 
-			earliest: _.first(media),
-			latest: _.last(media),
+			earliest: _.last(media),
+			latest: _.first(media),
 			byUsers: countByUsers, 
 			byHashtags: countByHashtags, 
 			hashtagsByUser: countHashtagsByUser
