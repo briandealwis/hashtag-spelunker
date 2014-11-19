@@ -16,8 +16,14 @@ angular.module('ight', [
 			+ '<img ng-src="{{post.images.thumbnail.url}}" ng-alt="{{post.caption.text}}">'
 			+ '</div>'
 			+ '</a>'
-			+ '<div class="date text-muted"><span class="glyphicon glyphicon-time" aria-hidden="true"></span> {{post.created_time * 1000 | date:medium}}</div>'
+			+ '<small>'
+			+ '<div class="details text-muted">'
+			+ '<span><span class="glyphicon glyphicon-time" aria-hidden="true"></span> {{post.created_time * 1000 | date:medium}}</span>'
+			+ '  <span ng-if="post.likes.count > 0"><a href="{{post.link}}" target="_blank"><span class="glyphicon glyphicon-heart" aria-hidden="true"></span> {{post.likes.count}}</a></span>'
+			+ '  <span ng-if="post.comments.count > 0"><a href="{{post.link}}" target="_blank"><span class="glyphicon glyphicon-fire" aria-hidden="true"></span> {{post.comments.count}}</a></span>'
+			+ '</div>'
 			+ '<div class="user text-muted"><span class="glyphicon glyphicon-user" aria-hidden="true"></span> <a ng-href="http://instagram.com/{{post.user.username}}" target="_blank">{{post.user.username}}</a></div>'
+			+ '</small>'
 			+ '</div>'
 	};
 })
@@ -97,7 +103,7 @@ angular.module('ight', [
 			.then(function success() {
 				return self.media = _.chain(self.posts)
 				.values()
-				.sortBy(function(m) { return m.created_time * 1; })
+				.sortBy(function(m) { return -m.created_time * 1; })
 				.value();
 			});
 	}
