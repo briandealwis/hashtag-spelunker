@@ -42,7 +42,7 @@ angular.module('ight', [
 		this.untilDate = undefined;
 		this.maxPosts = undefined;
 		
-		this.minTagIds = {};
+		this.nextMaxTagIds = {};
 		this.posts = {};
 		this.postsCount = 0;
 		this.media = [];	// regenerated from .posts after each processTags
@@ -115,7 +115,7 @@ angular.module('ight', [
 	InstagramTagSummary.prototype.processMoreTags = function(tag) {
 		var self = this;
 		// Instagram tagIds are in microseconds
-		if(this.untilDate && this.minTagIds[tag] > 0 && (this.minTagIds[tag] / 1000) < this.untilDate.getTime()) {
+		if(this.untilDate && this.nextMaxTagIds[tag] > 0 && (this.nextMaxTagIds[tag] / 1000) < this.untilDate.getTime()) {
 			console.log(tag + ": curtailing query as hit until date with " + this.postsCount + " posts total");
 			return $q.when(null);
 		} else if(this.maxPosts > 0 && this.postsCount >= this.maxPosts) {
@@ -123,7 +123,7 @@ angular.module('ight', [
 			return $q.when(null);
 		}
 		var params = { client_id: InstagramAppId };
-		if(this.minTagIds[tag] > 0) { params.max_tag_id = this.minTagIds[tag]; }
+		if(this.nextMaxTagIds[tag] > 0) { params.max_tag_id = this.nextMaxTagIds[tag]; }
 		if(this.maxPosts > 0) { params.count = (this.maxPosts - this.postsCount).toString(); }
 		return $http.jsonp('https://api.instagram.com/v1/tags/' + tag + '/media/recent?callback=JSON_CALLBACK', {
 				headers: {"Accept":undefined},
@@ -148,14 +148,15 @@ angular.module('ight', [
 					
 					if(self.maxPosts > 0) {
 						self.progress(90 * self.postsCount / self.maxPosts);
-					} else if(self.untilDate && response.data.pagination.next_max_tag_id) {
+					} else if(self.untilDate && response.data.pagination.min_tag_id) {
 						var d = new Date().getTime();
 						var until = self.untilDate.getTime();
-						var position = response.data.pagination.next_max_tag_id / 1000;
+						var position = response.data.pagination.min_tag_id / 1000;
 						self.progress(90 * (d - position) / (d - until));
 					}
-					if(response.data.pagination && (!self.minTagIds[tag] || response.data.pagination.next_max_tag_id < self.minTagIds[tag])) {
-						self.minTagIds[tag] = response.data.pagination.next_max_tag_id;
+					// while there's still more posts available...
+					if(response.data.pagination && response.data.pagination.next_max_tag_id) {
+						self.nextMaxTagIds[tag] = response.data.pagination.next_max_tag_id;
 						return self.processMoreTags(tag);
 					} else {
 						console.log(self.tag + ": no more posts; " + this.postsCount + " posts total");
@@ -165,7 +166,7 @@ angular.module('ight', [
 				function error(err) {
 					// return what we've got so far
 					console.log("error fetching data: " + JSON.stringify(err));
-					return _.values(null);
+					return $q.when(null);
 				});	
 	}
 	
