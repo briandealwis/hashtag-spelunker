@@ -86,9 +86,14 @@ angular.module('ight', [
 		var self = this;
 		this.progress = progress ? progress : function(value) {};
 		return this.processTags(progress)
-		.then(function success(media) {
-			if(self.maxPosts > 0) { media = _.last(media, self.maxPosts); }
-			return summarize(filter ? _.filter(media, filter) : media, 
+		.then(function success() {
+			var flow = _.chain(self.posts)
+				.values()
+				.sortBy(function(m) { return -m.created_time * 1; });
+			if(filter) { flow = flow.filter(filter); }
+			if(self.maxPosts > 0) { flow = flow.first(self.maxPosts); }
+			self.media = flow.value();
+			return summarize(self.media, 
 					function(v) { self.progress(90 + 10 * (v / 100)); });
 		}).finally(function() { self.progress = null; });
 		return deferred.promise;
@@ -101,10 +106,7 @@ angular.module('ight', [
 		var self = this;
 		return $q.all(_.map(this.tags, this.processMoreTags, this))
 			.then(function success() {
-				return self.media = _.chain(self.posts)
-				.values()
-				.sortBy(function(m) { return -m.created_time * 1; })
-				.value();
+				return null;
 			});
 	}
 			
@@ -140,6 +142,14 @@ angular.module('ight', [
 						+ (response.data.pagination.max_tag_id ?  response.data.pagination.max_tag_id : "?") + "]");
 					for(var i = 0; i < response.data.data.length; i++) {
 						var post = response.data.data[i];
+						/* A post with a later comment adding the searched-for tag will effectively 
+						 * be dated by the date of that comment rather than the post creation date.
+						 * If this behaviour is considered undesirable, could filter based on that. */
+						//if(response.data.pagination.next_max_tag_id && post.created_time 
+						//		&& post.created_time <  Math.floor(response.data.pagination.next_max_tag_id / 1000000)) {
+						//	console.dir(post);
+						//}
+						
 						if(!self.posts[post.id]) {
 							self.posts[post.id] = post;
 							self.postsCount++;
