@@ -29,7 +29,7 @@ angular.module('ight', [
 })
 
 .service('InstagramTags', function($http, $q, InstagramAppId, _) {
-	var _ = window._;
+	var _ = window._;	// FIXME: injecting with _ doesn't seem to be working
 	
 	function descendingSortKey(count, secondary) {
 		// invert the count as a negative integer, padded with 0s for sort
@@ -41,10 +41,12 @@ angular.module('ight', [
 		
 		this.untilDate = undefined;
 		this.maxPosts = undefined;
+		this.minFollowers = undefined;
 		
 		this.nextMaxTagIds = {};
 		this.posts = {};
 		this.postsCount = 0;
+		this.usersById = undefined;
 		this.media = [];	// regenerated from .posts after each processTags
 	};	
 	
@@ -84,28 +86,35 @@ angular.module('ight', [
 	
 	InstagramTagSummary.prototype.update = function(progress, filter) {
 		var self = this;
-		this.progress = progress ? progress : function(value) {};
-		return this.processTags(progress)
+		var P = function(start, count) {
+			return function(v) { if(progress) progress(start + (v * count / 100)); }};
+		return this._processTags(P(0, 50))
+		.then(function() { return self._processUsers(P(50, 40)); })
 		.then(function success() {
 			var flow = _.chain(self.posts)
 				.values()
 				.sortBy(function(m) { return -m.created_time * 1; });
 			if(filter) { flow = flow.filter(filter); }
 			if(self.maxPosts > 0) { flow = flow.first(self.maxPosts); }
+			if(self.minFollowers > 0) {
+				console.log("Filtering by follower count");
+				flow = flow.filter(function(post) { 
+					return self.usersById[post.user.id].counts.followed_by >= self.minFollowers; 
+				});
+			}
 			self.media = flow.value();
-			return summarize(self.media, 
-					function(v) { self.progress(90 + 10 * (v / 100)); });
-		}).finally(function() { self.progress = null; });
-		return deferred.promise;
+			return summarize(self.media, P(90, 10));
+		});
 	};
 
 	/**
 	 * @return promise with the media
 	 */
-	InstagramTagSummary.prototype.processTags = function() {
+	InstagramTagSummary.prototype._processTags = function(progress) {
 		var self = this;
-		return $q.all(_.map(this.tags, this.processMoreTags, this))
+		return $q.all(_.map(this.tags, function(t) { return self._processMoreTags(t, progress); }))
 			.then(function success() {
+				console.log("Finished _processTags()");
 				return null;
 			});
 	}
@@ -114,7 +123,7 @@ angular.module('ight', [
 	/**
 	 * @return promise with the media
 	 */
-	InstagramTagSummary.prototype.processMoreTags = function(tag) {
+	InstagramTagSummary.prototype._processMoreTags = function(tag, progress) {
 		var self = this;
 		// Instagram tagIds are in microseconds
 		if(this.untilDate && this.nextMaxTagIds[tag] > 0 && (this.nextMaxTagIds[tag] / 1000) < this.untilDate.getTime()) {
@@ -157,17 +166,17 @@ angular.module('ight', [
 					}
 					
 					if(self.maxPosts > 0) {
-						self.progress(90 * self.postsCount / self.maxPosts);
+						progress(100 * self.postsCount / self.maxPosts);
 					} else if(self.untilDate && response.data.pagination.min_tag_id) {
 						var d = new Date().getTime();
 						var until = self.untilDate.getTime();
 						var position = response.data.pagination.min_tag_id / 1000;
-						self.progress(90 * (d - position) / (d - until));
+						progress(100 * (d - position) / (d - until));
 					}
 					// while there's still more posts available...
 					if(response.data.pagination && response.data.pagination.next_max_tag_id) {
 						self.nextMaxTagIds[tag] = response.data.pagination.next_max_tag_id;
-						return self.processMoreTags(tag);
+						return self._processMoreTags(tag, progress);
 					} else {
 						console.log(self.tag + ": no more posts; " + this.postsCount + " posts total");
 						return $q.when(null);
@@ -178,9 +187,134 @@ angular.module('ight', [
 					console.log("error fetching data: " + JSON.stringify(err));
 					return $q.when(null);
 				});	
+	};
+	
+	/**
+	 * @return promise with the media
+	 */
+	InstagramTagSummary.prototype._processUsers = function(progress) {
+		var self = this;
+		if(!this.minFollowers) {
+			return $q.when(null);
+		} else if(!this.usersById) {
+			this.usersById = {};
+		}
+		var missing = {};
+		_.forEach(this.posts, function(post) {
+			var userId = '' + post.user.id;	// convert to string
+			if(!self.usersById[userId] && !missing[userId]) {
+				missing[userId] = userId;
+			}
+		});
+		missing = _.keys(missing);
+		var total = missing.length;
+		var count = 0;
+		console.log("Starting to fetch info on " + total + " users");
+		return processNextUser();
+		
+		function processNextUser() {
+			if(missing.length == 0) { 
+				console.log("Finished fetching using user info");
+				progress(100);
+				return $q.when(null);
+			}
+			var userId = missing.pop();
+			var params = { client_id: InstagramAppId };
+			return $http.jsonp('https://api.instagram.com/v1/users/' + userId + '?callback=JSON_CALLBACK', {
+					headers: {"Accept":undefined},
+					params: params
+				}).then(function success(response) {
+					if(response.data.meta.code == 400) {
+						console.log("error: could not fetch user details: " + JSON.stringify(response.data.meta));
+						return $q.reject(response.data.meta);
+					}
+					progress(++count * 100 / total);
+					self.usersById[response.data.data.id] = response.data.data;
+					console.log("Fetched " + response.data.data.username + ": " + response.data.data.counts);
+					return processNextUser();
+				});
+		};
+	};
+	
+	/**
+	 * Resolve the user details for the corresponding Instagram id,
+	 * a stable numeric value good for the life of the account. 
+	 * @param id the Instagram id (e.g., 141623523)
+	 * @returns a promise that will  be resolved with either the
+	 * 	Instagram user object or {@code undefined}.
+	 * 	
+	 */
+	InstagramTagSummary.prototype.lookupUserId = function(id) {
+		var self = this;
+		if(this.usersById && this.usersById[id]) {
+			return $q.when(this.usersById[id]);
+		}
+		var params = {
+				client_id: InstagramAppId
+		};
+		return $http.jsonp('https://api.instagram.com/v1/users/' + id + '?callback=JSON_CALLBACK',
+			{
+				headers: {"Accept":undefined},
+				params: params
+			}).then(function success(response) {
+				if(response.data.meta.code == 400) {
+					console.log("error: could not fetch tag details: " + JSON.stringify(response.data.meta));
+					return $q.when(undefined);
+				}
+				if(!self.usersById) {
+					self.usersById = {};
+				}
+				self.usersById[id] = response.data.data;	// stash it away
+				return response.data.data;
+			},
+			function error(err) {
+				console.log("Error looking up Instagram id '" + id + "': " + err);
+			});
+	},
+
+	/**
+	 * Resolve the user details for the corresponding Instagram handle,
+	 * a stable numeric value good for the life of the account. 
+	 * @param id the Instagram id (e.g., 141623523)
+	 * @returns a promise that will  be resolved with either the
+	 * 	Instagram user object or {@code undefined}.
+	 * 	
+	 */
+	InstagramTagSummary.prototype.lookupUserHandle = function(handle) {
+		var self = this;
+		if(this.usersById) {
+			var found = null;
+			_.each(this.usersById, function(user) {
+				if(_.isEqual(handle, user.username)) {
+					found = user;
+				}
+			});
+			if(found) {
+				return $q.when(found);
+			}
+		}
+		var params = {
+			client_id: InstagramAppId,
+			q: handle,
+			count: 1
+		};
+		return $http.jsonp('https://api.instagram.com/v1/users/search?callback=JSON_CALLBACK',
+			{
+				headers: {"Accept":undefined},
+				params: params
+			}).then(function success(response) {
+						if(response.data.meta.code == 400) {
+							console.log("error: could not fetch tag details: " + JSON.stringify(response.data.meta));
+							return undefined;
+						}
+						// /users/search doesn't return as much information 
+						return self.lookupUserId(response.data.data[0].id);
+					},
+					function error(err) {
+						console.log("Error looking up Instagram handle '" + handle + "': " + err);
+					});
 	}
-	
-	
+
 	return {
 		summarizeTags: function(tags) {
 			if(!_.isArray(tags)) {
@@ -188,49 +322,5 @@ angular.module('ight', [
 			}
 			return new InstagramTagSummary(tags);
 		},
-	
-		/**
-		 * Resolve the provided handle to the corresponding Instagram id,
-		 * a stable numeric value good for the life of the account. 
-		 * @param handle the Instagram handle (e.g., 'tatteredego')
-		 * @returns a promise that will  be resolved with either the
-		 * 	id or {@code undefined}.
-		 * 	
-		 */
-		lookupUserId: function(handle) {
-			var result = $q.defer();
-			$http.get('https://api.instagram.com/v1/users/search',
-				{
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: {
-						callback: '?',
-						client_id: InstagramAppId,
-						q: handle,
-						count: 1
-					}}).then(
-						function success(response) {
-							result.resolve(response.data.length == 0 ?
-									undefined : response.data[0].id);
-						},
-						function error(err) {
-							console.log("Error looking up Instagram handle '" + handle + "': " + err);
-							result.reject(err);
-						});
-				return result.promise;
-		}
-
-//		processUser: function(handle, date, maximum) {
-//			$http.get('https://api.instagram.com/v1/users/' + igUserId + '/media/recent',
-//				{
-//							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//							body: {
-//								callback: '?',
-//								client_id: InstagramAppId,
-//								q: req.params.user,
-//								count: 1
-//							}}).then(
-//								function success(response) {},
-//								function error(err) {});	
-//		}
 	};
 });

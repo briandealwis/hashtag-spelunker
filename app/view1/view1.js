@@ -20,7 +20,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 		.countBy(_.identity)
 		.value();
 
-	$scope.uniqueTags = 	_.chain($scope.countByHashtags)
+	$scope.uniqueTags = _.chain($scope.countByHashtags)
 			.pairs()
 			.sortBy(function(p) { return descendingSortKey(p[1], p[0]); })
 			.map(function(p) { return p[0]; })
@@ -40,7 +40,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 				.pluck('tags').flatten()
 				.countBy(_.identity)
 				.value();
-			$scope.uniqueTags = 	_.chain($scope.countByHashtags)
+			$scope.uniqueTags = _.chain($scope.countByHashtags)
 				.pairs()
 				.sortBy(function(p) { return descendingSortKey(p[1], p[0]); })
 				.map(function(p) { return p[0]; })
@@ -79,37 +79,60 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 	$scope.pluck = 100;
 	var summary;
 	
+	$scope.run = function() {
+		$scope.results = null;
+		
+		if(_.isEmpty($scope.tags)) {
+			summary = null;
+		} else {
+			if(!summary || $scope.originalTags != $scope.tags) {
+				$scope.originalTags = $scope.tags;
+				summary = InstagramTags.summarizeTags($scope.tags);
+			}
+			if($scope.minFollowers > 0) {
+				summary.minFollowers = $scope.minFollowers;
+			}
+			if($scope.maxPosts > 0) {
+				summary.maxPosts = $scope.maxPosts;
+			}
+			if($scope.untilDate) {
+				summary.untilDate = new Date($scope.untilDate);
+			}
+		}
+		update();
+	};
 	function update() {
 		if(summary) {
 			$scope.progress = 0;
 			$scope.running = true;
 			summary.update(function(value) {
 				$scope.progress = Math.floor(value);
-			}).then(
-				function success(results) {
-					$scope.results = {
-							media: summary.media,
-							earliest: results.earliest,
-							latest: results.latest,
-							byUsers: results.byUsers, 
-							byHashtags: results.byHashtags, 
-							hashtagsByUser: results.hashtagsByUser
-					};
-				}, function error(err) {
-					alert("An error occurred: " + JSON.stringify(err));
-				}).finally(function() {
-					$scope.running = false;
-				});
+			}).then(function success(results) {
+				console.log("update(): setting $scope.results");
+				$scope.results = {
+						media: summary.media,
+						earliest: results.earliest,
+						latest: results.latest,
+						byUsers: results.byUsers, 
+						byHashtags: results.byHashtags, 
+						hashtagsByUser: results.hashtagsByUser
+				};
+			}, function error(err) {
+				alert("An error occurred: " + JSON.stringify(err));
+			}).finally(function() {
+				$scope.running = false;
+			});
 		} else {
 			$scope.results = null;
 		}
 	}
 
-	function showPosts(title, posts) {
+	function showPosts(title, posts, user) {
 		console.log("show posts: " + title);
 		var newScope = $scope.$new();
 		newScope.title = title;
 		newScope.posts = posts;
+		newScope.user = user;
 		$modal.open({
 //			resolve: {
 //				title: function() { return title; },
@@ -118,7 +141,16 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 			scope: newScope,
 			controller: 'PostsCtrl',
 			template: 
-						'<div class="modal-header"><h4>{{title}} ({{posts.length}})</h4></div>'
+						'<div class="modal-header">'
+						+ '<h4>{{title}} ({{posts.length}})</h4>'
+						+ '<h5 ng-if="user">'
+						+ '{{user.username}} <span ng-show="user.full_name">({{user.full_name}})</span>: '
+						+ '{{user.counts.media}} posts, {{user.counts.followed_by}} followers'
+						+ '</h5>'
+						+ '<h6 ng-if="user.bio">'
+						+ '{{user.bio}}'
+						+ '</h6>'
+						+'</div>'
 						+ '<div class="modal-body">'
 						+ '<p><label>Filter:</label> <input type="search" ng-model="search.tags" placeholder="filter by tag"></p>'
 						+ '<p>'
@@ -135,38 +167,26 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 		});
 	}
 	
-	$scope.showPostsFromUser = function(username) {
-		showPosts("Posts from " + username,
-			_.filter(summary.media, function(m) { return m.user.username == username; }));
+	$scope.showPostsFromUser = function(handle) {
+		return summary.lookupUserHandle(handle)
+		.then(function(user) {
+			showPosts("Posts from " + handle,
+					_.filter(summary.media, function(m) { return m.user.username == handle; }),
+					user);
+		});
 	};
 	$scope.showPostsWithTag = function(tag) {
-		showPosts('Posts with  #' + tag,
+		return showPosts('Posts with  #' + tag,
 			_.filter(summary.media, function(m) { return _.contains(m.tags, tag); }));
 	};
 	$scope.showPostsFromUserWithTag = function(handle, tag) {
-		showPosts('From ' + handle + " with #" + tag, 
-				_.filter(summary.media,
-						function(m) { return m.user.username == handle
-							&& _.contains(m.tags, tag); }));
-	};
-	
-	$scope.run = function() {
-		$scope.results = null;
-		
-		if(_.isEmpty($scope.tags)) {
-			summary = null;
-		} else {
-			if(!summary || $scope.originalTags != $scope.tags) {
-				$scope.originalTags = $scope.tags;
-				summary = InstagramTags.summarizeTags($scope.tags);
-			}
-			if($scope.maxPosts > 0) {
-				summary.maxPosts = $scope.maxPosts
-			}
-			if($scope.untilDate) {
-				summary.untilDate = new Date($scope.untilDate);
-			}
-		}
-		update();
+		return summary.lookupUserHandle(handle)
+		.then(function(user) {			
+			showPosts('From ' + handle + " with #" + tag, 
+					_.filter(summary.media,
+							function(m) { return m.user.username == handle
+						&& _.contains(m.tags, tag); }),
+					user);
+		});
 	};
 });
