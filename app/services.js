@@ -3,7 +3,7 @@ angular.module('ight', [
 ])
 
 .constant('_', window._)
-.constant('InstagramAppId', 'f05f03002ba04cb48c65c7ddae75def1')
+.constant('InstagramAppId', 'f62682a68d99471892878374803e6ac8')
 
 .directive('igCompact', function($compile) {
 	return {
