@@ -5,8 +5,12 @@
 <form role="form" class="form-horizontal">
 		<div class="form-group form-group-sm">
 			<label class="col-xs-4 control-label">Hashtag(s)</label>
-			<div class="col-xs-8">
-				 <input type="text" class="form-control input-normal" pattern="([a-zA-Z][a-zA-Z0-9]* *)+"  ng-model="tags" autofocus><br>
+			<div class="col-xs-8" ng-class='{"has-error":tagsErrorMessage}'>
+				<input type="text" class="form-control input-normal" ng-model="tags" autofocus
+					aria-describedby="tagHelpText" placeholder="(jewelry|jewellery) (ring|rings) !bling">
+				<p ng-if="tagsErrorMessage">{{tagsErrorMessage}}</p>
+				<p id="tagHelpText" class="help-block">Supports boolean queries using &amp; and |, () to group, 
+				and !<em>tag</em> to anti-tag</p>
 			</div>
 		</div>
 		<div class="form-group form-group-sm">

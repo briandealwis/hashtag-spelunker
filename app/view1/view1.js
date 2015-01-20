@@ -78,6 +78,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 	$scope.untilDate = new Date().toISOString().slice(0,10);
 	$scope.pluck = 100;
 	var summary;
+	var tagExpr;
 	
 	$scope.run = function() {
 		$scope.results = null;
@@ -87,7 +88,19 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 		} else {
 			if(!summary || $scope.originalTags != $scope.tags) {
 				$scope.originalTags = $scope.tags;
-				summary = InstagramTags.summarizeTags($scope.tags);
+				try {					
+					$scope.tagsErrorMessage = null;
+					tagExpr = tagexprparser.parse($scope.tags);
+					var tags = _.uniq(tagExpr.tags());
+					if(_.isEmpty(tags)) {
+						$scope.tagsErrorMessage = "Must have at least one positive tag";
+						return;						
+					}
+					summary = InstagramTags.summarizeTags(tags);
+				} catch(e) {
+					$scope.tagsErrorMessage = e.toString();
+					return;
+				}
 			}
 			if($scope.minFollowers > 0) {
 				summary.minFollowers = $scope.minFollowers;
@@ -105,9 +118,9 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 		if(summary) {
 			$scope.progress = 0;
 			$scope.running = true;
-			summary.update(function(value) {
-				$scope.progress = Math.floor(value);
-			}).then(function success(results) {
+			summary.update(function(value) { $scope.progress = Math.floor(value); },
+					function(post) { return tagExpr.matches(post); })
+			.then(function success(results) {
 				console.log("update(): setting $scope.results");
 				$scope.results = {
 						media: summary.media,
