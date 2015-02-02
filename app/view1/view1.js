@@ -77,60 +77,45 @@ angular.module('myApp.view1', ['ngRoute', 'services', 'ui.bootstrap'])
 	$scope.maxPosts = 200;
 	$scope.untilDate = new Date().toISOString().slice(0,10);
 	$scope.pluck = 100;
-	var summary;
+	var summary = InstagramTags.create();
 	var tagExpr;
 	
 	$scope.run = function() {
 		$scope.results = null;
 		
 		if(_.isEmpty($scope.tags)) {
-			summary = null;
-		} else {
-			if(!summary || $scope.originalTags != $scope.tags) {
-				$scope.originalTags = $scope.tags;
-				try {					
-					$scope.tagsErrorMessage = null;
-					tagExpr = tagexprparser.parse($scope.tags);
-					var tags = _.uniq(tagExpr.tags());
-					if(_.isEmpty(tags)) {
-						$scope.tagsErrorMessage = "Must have at least one positive tag";
-						return;						
-					}
-					summary = InstagramTags.summarizeTags(tags);
-				} catch(e) {
-					$scope.tagsErrorMessage = e.toString();
-					return;
+			return $scope.tagsErrorMessage = "Missing tags";
+		}
+		if($scope.originalTags != $scope.tags) {
+			$scope.originalTags = $scope.tags;
+			try {					
+				$scope.tagsErrorMessage = null;
+				tagExpr = tagexprparser.parse($scope.tags);
+				var tags = _.uniq(tagExpr.tags());
+				if(_.isEmpty(tags)) {
+					return $scope.tagsErrorMessage = "Must have at least one positive tag";
 				}
-			}
-			if($scope.minFollowers > 0) {
-				summary.minFollowers = $scope.minFollowers;
-			}
-			if($scope.maxPosts > 0) {
-				summary.maxPosts = $scope.maxPosts;
-			}
-			if($scope.untilDate) {
-				summary.untilDate = new Date($scope.untilDate);
+				summary.tags = tags;
+			} catch(e) {
+				return $scope.tagsErrorMessage = e.toString();
 			}
 		}
-		update();
-	};
-	function update() {
-		if(summary) {
-			$scope.progress = 0;
-			$scope.running = true;
-			summary.update(function(value) { $scope.progress = Math.floor(value); },
-					function(post) { return tagExpr.matches(post); })
-			.then(function success(results) {
-				console.log("update(): setting $scope.results");
-				$scope.results = results;
-			}, function error(err) {
-				alert("An error occurred: " + JSON.stringify(err));
-			}).finally(function() {
-				$scope.running = false;
-			});
-		} else {
-			$scope.results = null;
-		}
+		summary.minFollowers = $scope.minFollowers;
+		summary.maxPosts = $scope.maxPosts;
+		summary.untilDate = $scope.untilDate ? new Date($scope.untilDate) : undefined;
+	
+		$scope.progress = 0;
+		$scope.running = true;
+		return summary.update(function(value) { $scope.progress = Math.floor(value); },
+				function(post) { return tagExpr.matches(post); })
+		.then(function success(results) {
+			console.log("update(): setting $scope.results");
+			$scope.results = results;
+		}, function error(err) {
+			alert("An error occurred: " + JSON.stringify(err));
+		}).finally(function() {
+			$scope.running = false;
+		});
 	}
 
 	function showPosts(title, posts, user) {

@@ -327,11 +327,8 @@ angular.module('services', [
 	}
 
 	return {
-		summarizeTags: function(tags) {
-			if(!_.isArray(tags)) {
-				tags = tags.split(/[, #]+/);
-			}
-			return new InstagramTagSummary(tags);
+		create: function() {
+			return new InstagramTagSummary([]);
 		},
 	};
 });
