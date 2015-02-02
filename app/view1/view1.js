@@ -1,6 +1,6 @@
 'use strict';
 
-angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
+angular.module('myApp.view1', ['ngRoute', 'services', 'ui.bootstrap'])
 
 .config(function($routeProvider) {
   $routeProvider.when('/view1', {
@@ -9,7 +9,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
   });
 })
 
-.controller('PostsCtrl', function($scope) {
+.controller('PostsCtrl', function($scope, _) {
 	function descendingSortKey(count, secondary) {
 		// encode the count as a negative integer, padded with 0s for sort
 		return (100000 - count).toString() + secondary;
@@ -71,7 +71,7 @@ angular.module('myApp.view1', ['ngRoute', 'ight', 'ui.bootstrap'])
 })
 
 
-.controller('View1Ctrl', function($scope, $modal, InstagramTags) {
+.controller('View1Ctrl', function($scope, _, $modal, InstagramTags) {
 	console.log("about to invoke summarizer");
 	$scope.tags = "";
 	$scope.maxPosts = 200;

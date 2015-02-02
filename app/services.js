@@ -1,4 +1,4 @@
-angular.module('ight', [
+angular.module('services', [
                         'ui.bootstrap'
 ])
 
@@ -29,7 +29,6 @@ angular.module('ight', [
 })
 
 .service('InstagramTags', function($http, $q, InstagramAppId, _) {
-	var _ = window._;	// FIXME: injecting with _ doesn't seem to be working
 	
 	function descendingSortKey(count, secondary) {
 		// invert the count as a negative integer, padded with 0s for sort
@@ -45,7 +44,7 @@ angular.module('ight', [
 		
 		this.nextMaxTagIds = {};
 		this.posts = {};
-		this.postsCount = 0;
+		this.postsCounts = {};
 		this.usersById = undefined;
 		this.media = [];	// regenerated from .posts after each processTags
 	};	
@@ -112,30 +111,37 @@ angular.module('ight', [
 	 */
 	InstagramTagSummary.prototype._processTags = function(progress) {
 		var self = this;
-		return $q.all(_.map(this.tags, function(t) { return self._processMoreTags(t, progress); }))
-			.then(function success() {
-				console.log("Finished _processTags()");
-				return null;
+		var tagIndex = 0;
+
+		return continueProcessing();
+		function continueProcessing() {
+			if(tagIndex == self.tags.length) { return self.posts; }
+			return self._processMoreTags(self.tags[tagIndex++],
+					function(v) { if(progress) progress(v * tagIndex / self.tags.length); })
+			.then(function success(posts) {
+				return continueProcessing();
 			});
+		}
 	}
 			
-		
+	
 	/**
-	 * @return promise with the media
+	 * @return promise with the media or {null} if complete or error occurred
 	 */
 	InstagramTagSummary.prototype._processMoreTags = function(tag, progress) {
 		var self = this;
+		if(!this.postsCounts[tag]) { this.postsCounts[tag] = 0; }
 		// Instagram tagIds are in microseconds
 		if(this.untilDate && this.nextMaxTagIds[tag] > 0 && (this.nextMaxTagIds[tag] / 1000) < this.untilDate.getTime()) {
-			console.log(tag + ": curtailing query as hit until date with " + this.postsCount + " posts total");
+			console.log(tag + ": curtailing query as hit until date with " + this.postsCounts[tag] + " posts total");
 			return $q.when(null);
-		} else if(this.maxPosts > 0 && this.postsCount >= this.maxPosts) {
-			console.log(tag + ": curtailing query with " + this.postsCount + " posts total");
+		} else if(this.maxPosts > 0 && this.postsCounts[tag] >= this.maxPosts) {
+			console.log(tag + ": curtailing query with " + this.postsCounts[tag] + " posts total");
 			return $q.when(null);
 		}
 		var params = { client_id: InstagramAppId };
 		if(this.nextMaxTagIds[tag] > 0) { params.max_tag_id = this.nextMaxTagIds[tag]; }
-		if(this.maxPosts > 0) { params.count = (this.maxPosts - this.postsCount).toString(); }
+		if(this.maxPosts > 0) { params.count = (this.maxPosts - this.postsCounts[tag]).toString(); }
 		return $http.jsonp('https://api.instagram.com/v1/tags/' + tag + '/media/recent?callback=JSON_CALLBACK', {
 				headers: {"Accept":undefined},
 				params: params
@@ -161,12 +167,12 @@ angular.module('ight', [
 						
 						if(!self.posts[post.id]) {
 							self.posts[post.id] = post;
-							self.postsCount++;
 						}
+						self.postsCounts[tag]++;
 					}
 					
 					if(self.maxPosts > 0) {
-						progress(100 * self.postsCount / self.maxPosts);
+						progress(100 * self.postsCounts[tag] / self.maxPosts);
 					} else if(self.untilDate && response.data.pagination.min_tag_id) {
 						var d = new Date().getTime();
 						var until = self.untilDate.getTime();
@@ -178,7 +184,7 @@ angular.module('ight', [
 						self.nextMaxTagIds[tag] = response.data.pagination.next_max_tag_id;
 						return self._processMoreTags(tag, progress);
 					} else {
-						console.log(self.tag + ": no more posts; " + this.postsCount + " posts total");
+						console.log(self.tag + ": no more posts; " + this.postsCounts[tag] + " posts total");
 						return $q.when(null);
 					}
 				},
