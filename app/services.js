@@ -46,7 +46,6 @@ angular.module('services', [
 		this.posts = {};
 		this.postsCounts = {};
 		this.usersById = undefined;
-		this.media = [];	// regenerated from .posts after each processTags
 	};	
 	
 	function summarize(media, progress) {
@@ -74,7 +73,8 @@ angular.module('services', [
 				.value();
 		progress(100);
 		// Note that we sort the media in inverse order 
-		return { 
+		return {
+			media: media,
 			earliest: _.last(media),
 			latest: _.first(media),
 			byUsers: countByUsers, 
@@ -88,21 +88,19 @@ angular.module('services', [
 		var P = function(start, count) {
 			return function(v) { if(progress) progress(start + (v * count / 100)); }};
 		return this._processTags(P(0, 50))
-		.then(function() { return self._processUsers(P(50, 40)); })
-		.then(function success() {
-			var flow = _.chain(self.posts)
+		.then(function success(posts) {
+			var flow = _.chain(posts)
 				.values()
 				.sortBy(function(m) { return -m.created_time * 1; });
 			if(filter) { flow = flow.filter(filter); }
 			if(self.maxPosts > 0) { flow = flow.first(self.maxPosts); }
-			if(self.minFollowers > 0) {
-				console.log("Filtering by follower count");
-				flow = flow.filter(function(post) { 
-					return self.usersById[post.user.id].counts.followed_by >= self.minFollowers; 
-				});
-			}
-			self.media = flow.value();
-			return summarize(self.media, P(90, 10));
+			return flow.value();
+		})
+		.then(function(posts) {
+			return self.minFollowers > 0 ? self._processUsers(posts, P(50, 40)) : posts; 
+		})
+		.then(function(posts) {
+			return summarize(posts, P(90, 10));
 		});
 	};
 
@@ -184,7 +182,7 @@ angular.module('services', [
 						self.nextMaxTagIds[tag] = response.data.pagination.next_max_tag_id;
 						return self._processMoreTags(tag, progress);
 					} else {
-						console.log(self.tag + ": no more posts; " + this.postsCounts[tag] + " posts total");
+						console.log(self.tag + ": no more posts; " + self.postsCounts[tag] + " posts total");
 						return $q.when(null);
 					}
 				},
@@ -198,15 +196,17 @@ angular.module('services', [
 	/**
 	 * @return promise with the media
 	 */
-	InstagramTagSummary.prototype._processUsers = function(progress) {
+	InstagramTagSummary.prototype._processUsers = function(posts, progress) {
 		var self = this;
+
 		if(!this.minFollowers) {
-			return $q.when(null);
-		} else if(!this.usersById) {
+			return $q.when(posts);
+		}
+		if(!this.usersById) {
 			this.usersById = {};
 		}
 		var missing = {};
-		_.forEach(this.posts, function(post) {
+		_.forEach(posts, function(post) {
 			var userId = '' + post.user.id;	// convert to string
 			if(!self.usersById[userId] && !missing[userId]) {
 				missing[userId] = userId;
@@ -216,7 +216,12 @@ angular.module('services', [
 		var total = missing.length;
 		var count = 0;
 		console.log("Starting to fetch info on " + total + " users");
-		return processNextUser();
+		return processNextUser()
+		.then(function() {
+			return posts.filter(function(post) { 
+				return self.usersById[post.user.id].counts.followed_by >= self.minFollowers; 
+			});
+		});
 		
 		function processNextUser() {
 			if(missing.length == 0) { 

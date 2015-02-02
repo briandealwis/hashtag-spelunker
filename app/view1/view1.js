@@ -122,14 +122,7 @@ angular.module('myApp.view1', ['ngRoute', 'services', 'ui.bootstrap'])
 					function(post) { return tagExpr.matches(post); })
 			.then(function success(results) {
 				console.log("update(): setting $scope.results");
-				$scope.results = {
-						media: summary.media,
-						earliest: results.earliest,
-						latest: results.latest,
-						byUsers: results.byUsers, 
-						byHashtags: results.byHashtags, 
-						hashtagsByUser: results.hashtagsByUser
-				};
+				$scope.results = results;
 			}, function error(err) {
 				alert("An error occurred: " + JSON.stringify(err));
 			}).finally(function() {
@@ -184,19 +177,19 @@ angular.module('myApp.view1', ['ngRoute', 'services', 'ui.bootstrap'])
 		return summary.lookupUserHandle(handle)
 		.then(function(user) {
 			showPosts("Posts from " + handle,
-					_.filter(summary.media, function(m) { return m.user.username == handle; }),
+					_.filter($scope.results.media, function(m) { return m.user.username == handle; }),
 					user);
 		});
 	};
 	$scope.showPostsWithTag = function(tag) {
 		return showPosts('Posts with  #' + tag,
-			_.filter(summary.media, function(m) { return _.contains(m.tags, tag); }));
+			_.filter($scope.results.media, function(m) { return _.contains(m.tags, tag); }));
 	};
 	$scope.showPostsFromUserWithTag = function(handle, tag) {
 		return summary.lookupUserHandle(handle)
 		.then(function(user) {			
 			showPosts('From ' + handle + " with #" + tag, 
-					_.filter(summary.media,
+					_.filter($scope.results.media,
 							function(m) { return m.user.username == handle
 						&& _.contains(m.tags, tag); }),
 					user);
