@@ -1,4 +1,4 @@
-angular.module('services', [
+angular.module('myApp.services', [
                         'ui.bootstrap'
 ])
 
@@ -35,16 +35,21 @@ angular.module('services', [
 		return (100000 - count).toString() + secondary;
 	}
 	
-	var InstagramTagSummary = function(tags) {
-		this.tags = _.isArray(tags) ? tags : [tags];
+	var InstagramTagSummary = function() {
 		
 		this.untilDate = undefined;
 		this.maxPosts = undefined;
 		this.minFollowers = undefined;
 		
-		this.nextMaxTagIds = {};
-		this.posts = {};
-		this.postsCounts = {};
+		this._posts = {};
+		
+		this.tags = undefined;
+		this._nextMaxTagIds = {};
+		this._taggedPostCounts = {};
+		
+		this.position = undefined;
+		this.positionPostCounts = undefined;
+		
 		this.usersById = undefined;
 	};	
 	
@@ -87,7 +92,7 @@ angular.module('services', [
 		var self = this;
 		var P = function(start, count) {
 			return function(v) { if(progress) progress(start + (v * count / 100)); }};
-		return this._processTags(P(0, 50))
+		return (this.tags ? this._processTaggedPosts(P(0, 50)) : this._processPostsWithPosition(P(0, 50)))
 		.then(function success(posts) {
 			var flow = _.chain(posts)
 				.values()
@@ -107,14 +112,93 @@ angular.module('services', [
 	/**
 	 * @return promise with the media
 	 */
-	InstagramTagSummary.prototype._processTags = function(progress) {
+	InstagramTagSummary.prototype._processPostsWithPosition = function(progress) {
+		var self = this;
+		var untilDateAsTs = this.untilDate ? Math.floor(this.untilDate.getTime() / 1000) : 0;
+		if(!this._positionPostCount) { this._positionPostCount = 0; }
+		if(this.untilDate && this._nextPositionMaxTs > 0 && this._nextPositionMaxTs < untilDateAsTs) {
+			console.log("curtailing position query as hit until date with " + this._positionPostCount + " posts total");
+			return $q.when(self._posts);
+		} else if(this.maxPosts > 0 && this._positionPostCount >= this.maxPosts) {
+			console.log("curtailing position query with " + this._positionPostCount + " posts total");
+			return $q.when(self._posts);
+		}
+		var params = { 
+				client_id: InstagramAppId,
+				lat: this.position.latitude,
+				lng: this.position.longitude,
+				distance: this.position.distance
+		};
+		if(this.untilDate) {
+			params.min_timestamp = untilDateAsTs;
+		}
+		if(this._nextPositionMaxTs > 0) { params.max_timestamp = this._nextPositionMaxTs; }
+		if(this.maxPosts > 0) { params.count = (this.maxPosts - this._positionPostCount).toString(); }
+		return $http.jsonp('https://api.instagram.com/v1/media/search?callback=JSON_CALLBACK', {
+				headers: {"Accept":undefined},
+				params: params
+			}).then(
+				function success(response) {
+					if(response.data.meta.code == 400) {
+						console.log("error: could not fetch position details: " + JSON.stringify(response.data.meta));
+						return $q.reject(response.data.meta);
+					}
+					
+					console.log("position query: received " + response.data.data.length + " posts");
+					if(response.data.data.length == 0) {
+						return $q.when(self._posts);
+					}
+					var earliestCreationTs = response.data.data[0].created_time;
+					for(var i = 0; i < response.data.data.length; i++) {
+						var post = response.data.data[i];
+						/* A post with a later comment adding the searched-for tag will effectively 
+						 * be dated by the date of that comment rather than the post creation date.
+						 * If this behaviour is considered undesirable, could filter based on that. */
+						//if(response.data.pagination.next_max_tag_id && post.created_time 
+						//		&& post.created_time <  Math.floor(response.data.pagination.next_max_tag_id / 1000000)) {
+						//	console.dir(post);
+						//}
+						
+						if(!self._posts[post.id]) {
+							self._posts[post.id] = post;
+						}
+						self._positionPostCount++;
+						earliestCreationTs = Math.min(earliestCreationTs, post.created_time);
+					}
+					
+					if(self.maxPosts > 0) {
+						progress(100 * self._positionPostCount / self.maxPosts);
+					} else if(self.untilDate) {
+						var d = new Date().getTime() / 1000;
+						var position = earliestCreationTs;
+						progress(100 * (d - position) / (d - untilDateAsTs));
+					}
+					// while there's still more posts available...
+					if(self._nextPositionMaxTs == earliestCreationTs) {
+						return $q.when(self._posts);
+					} else {						
+						self._nextPositionMaxTs = earliestCreationTs;
+						return self._processPostsWithPosition(progress);
+					}
+				},
+				function error(err) {
+					// return what we've got so far
+					console.log("error fetching data: " + JSON.stringify(err));
+					return $q.when(self._posts);
+				});	
+	}
+
+	/**
+	 * @return promise with the media
+	 */
+	InstagramTagSummary.prototype._processTaggedPosts = function(progress) {
 		var self = this;
 		var tagIndex = 0;
 
 		return continueProcessing();
 		function continueProcessing() {
-			if(tagIndex == self.tags.length) { return self.posts; }
-			return self._processMoreTags(self.tags[tagIndex++],
+			if(tagIndex == self.tags.length) { return self._posts; }
+			return self._fetchPostsWithTag(self.tags[tagIndex++],
 					function(v) { if(progress) progress(v * tagIndex / self.tags.length); })
 			.then(function success(posts) {
 				return continueProcessing();
@@ -126,20 +210,20 @@ angular.module('services', [
 	/**
 	 * @return promise with the media or {null} if complete or error occurred
 	 */
-	InstagramTagSummary.prototype._processMoreTags = function(tag, progress) {
+	InstagramTagSummary.prototype._fetchPostsWithTag = function(tag, progress) {
 		var self = this;
-		if(!this.postsCounts[tag]) { this.postsCounts[tag] = 0; }
+		if(!this._taggedPostCounts[tag]) { this._taggedPostCounts[tag] = 0; }
 		// Instagram tagIds are in microseconds
-		if(this.untilDate && this.nextMaxTagIds[tag] > 0 && (this.nextMaxTagIds[tag] / 1000) < this.untilDate.getTime()) {
-			console.log(tag + ": curtailing query as hit until date with " + this.postsCounts[tag] + " posts total");
+		if(this.untilDate && this._nextMaxTagIds[tag] > 0 && (this._nextMaxTagIds[tag] / 1000) < this.untilDate.getTime()) {
+			console.log(tag + ": curtailing query as hit until date with " + this._taggedPostCounts[tag] + " posts total");
 			return $q.when(null);
-		} else if(this.maxPosts > 0 && this.postsCounts[tag] >= this.maxPosts) {
-			console.log(tag + ": curtailing query with " + this.postsCounts[tag] + " posts total");
+		} else if(this.maxPosts > 0 && this._taggedPostCounts[tag] >= this.maxPosts) {
+			console.log(tag + ": curtailing query with " + this._taggedPostCounts[tag] + " posts total");
 			return $q.when(null);
 		}
 		var params = { client_id: InstagramAppId };
-		if(this.nextMaxTagIds[tag] > 0) { params.max_tag_id = this.nextMaxTagIds[tag]; }
-		if(this.maxPosts > 0) { params.count = (this.maxPosts - this.postsCounts[tag]).toString(); }
+		if(this._nextMaxTagIds[tag] > 0) { params.max_tag_id = this._nextMaxTagIds[tag]; }
+		if(this.maxPosts > 0) { params.count = (this.maxPosts - this._taggedPostCounts[tag]).toString(); }
 		return $http.jsonp('https://api.instagram.com/v1/tags/' + tag + '/media/recent?callback=JSON_CALLBACK', {
 				headers: {"Accept":undefined},
 				params: params
@@ -163,14 +247,14 @@ angular.module('services', [
 						//	console.dir(post);
 						//}
 						
-						if(!self.posts[post.id]) {
-							self.posts[post.id] = post;
+						if(!self._posts[post.id]) {
+							self._posts[post.id] = post;
 						}
-						self.postsCounts[tag]++;
+						self._taggedPostCounts[tag]++;
 					}
 					
 					if(self.maxPosts > 0) {
-						progress(100 * self.postsCounts[tag] / self.maxPosts);
+						progress(100 * self._taggedPostCounts[tag] / self.maxPosts);
 					} else if(self.untilDate && response.data.pagination.min_tag_id) {
 						var d = new Date().getTime();
 						var until = self.untilDate.getTime();
@@ -179,10 +263,10 @@ angular.module('services', [
 					}
 					// while there's still more posts available...
 					if(response.data.pagination && response.data.pagination.next_max_tag_id) {
-						self.nextMaxTagIds[tag] = response.data.pagination.next_max_tag_id;
-						return self._processMoreTags(tag, progress);
+						self._nextMaxTagIds[tag] = response.data.pagination.next_max_tag_id;
+						return self._fetchPostsWithTag(tag, progress);
 					} else {
-						console.log(self.tag + ": no more posts; " + self.postsCounts[tag] + " posts total");
+						console.log(self.tag + ": no more posts; " + self._taggedPostCounts[tag] + " posts total");
 						return $q.when(null);
 					}
 				},

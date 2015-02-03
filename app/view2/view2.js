@@ -1,16 +1,18 @@
 'use strict';
 
-angular.module('myApp.view1', ['ngRoute', 'myApp.services', 'myApp.posts', 'ui.bootstrap'])
+angular.module('myApp.view2', ['ngRoute', 'myApp.services', 'myApp.posts', 'ui.bootstrap'])
 
 .config(function($routeProvider) {
-  $routeProvider.when('/view1', {
-    templateUrl: 'view1/view1.html',
-    controller: 'View1Ctrl'
+  $routeProvider.when('/view2', {
+    templateUrl: 'view2/view2.html',
+    controller: 'View2Ctrl'
   });
 })
 
-.controller('View1Ctrl', function($scope, _, $modal, InstagramTags, PostsViewer) {
+
+.controller('View2Ctrl', function($scope, _, $modal, InstagramTags, PostsViewer) {
 	console.log("about to invoke summarizer");
+	$scope.position = { latitude: 43.7, longitude: -79.4, distance: 1000 };
 	$scope.tags = "";
 	$scope.maxPosts = 200;
 	$scope.untilDate = new Date().toISOString().slice(0,10);
@@ -21,23 +23,13 @@ angular.module('myApp.view1', ['ngRoute', 'myApp.services', 'myApp.posts', 'ui.b
 	$scope.run = function() {
 		$scope.results = null;
 		
-		if(_.isEmpty($scope.tags)) {
-			return $scope.tagsErrorMessage = "Missing tags";
+		try {					
+			$scope.tagsErrorMessage = null;
+			tagExpr = $scope.tags ? tagexprparser.parse($scope.tags) : null;
+		} catch(e) {
+			return $scope.tagsErrorMessage = e.toString();
 		}
-		if($scope.originalTags != $scope.tags) {
-			$scope.originalTags = $scope.tags;
-			try {					
-				$scope.tagsErrorMessage = null;
-				tagExpr = tagexprparser.parse($scope.tags);
-				var tags = _.uniq(tagExpr.tags());
-				if(_.isEmpty(tags)) {
-					return $scope.tagsErrorMessage = "Must have at least one positive tag";
-				}
-				summary.tags = tags;
-			} catch(e) {
-				return $scope.tagsErrorMessage = e.toString();
-			}
-		}
+		summary.position = $scope.position;
 		summary.minFollowers = $scope.minFollowers;
 		summary.maxPosts = $scope.maxPosts;
 		summary.untilDate = $scope.untilDate ? new Date($scope.untilDate) : undefined;
@@ -45,7 +37,7 @@ angular.module('myApp.view1', ['ngRoute', 'myApp.services', 'myApp.posts', 'ui.b
 		$scope.progress = 0;
 		$scope.running = true;
 		return summary.update(function(value) { $scope.progress = Math.floor(value); },
-				function(post) { return tagExpr.matches(post); })
+				function(post) { return tagExpr ? tagExpr.matches(post) : true; })
 		.then(function success(results) {
 			console.log("update(): setting $scope.results");
 			$scope.results = results;
@@ -54,7 +46,7 @@ angular.module('myApp.view1', ['ngRoute', 'myApp.services', 'myApp.posts', 'ui.b
 		}).finally(function() {
 			$scope.running = false;
 		});
-	}
+	};
 	
 	$scope.showPostsFromUser = function(handle) {
 		return summary.lookupUserHandle(handle)
@@ -64,10 +56,12 @@ angular.module('myApp.view1', ['ngRoute', 'myApp.services', 'myApp.posts', 'ui.b
 					user);
 		});
 	};
+	
 	$scope.showPostsWithTag = function(tag) {
 		return PostsViewer.showPosts('Posts with  #' + tag,
 			_.filter($scope.results.media, function(m) { return _.contains(m.tags, tag); }));
 	};
+	
 	$scope.showPostsFromUserWithTag = function(handle, tag) {
 		return summary.lookupUserHandle(handle)
 		.then(function(user) {			

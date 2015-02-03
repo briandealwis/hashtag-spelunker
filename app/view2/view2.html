@@ -1,0 +1,132 @@
+<div class="page-header">
+	<h1 class="text-center">The<br> <small><del>Great</del></small> <small>Somewhat Useful</small><br> Instagram Geolocation Spelunker</h1>
+</div>
+<div class="parameters container">
+<form role="form" class="form-horizontal">
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Latitude</label>
+			<div class="col-xs-8">
+				<input class="form-control input-normal" 
+					ng-model="position.latitude" autofocus
+					type="number" min="-90" max="90" step=".1">
+			</div>
+		</div>
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Longitude</label>
+			<div class="col-xs-8">
+				<input class="form-control input-normal" 
+					ng-model="position.longitude" autofocus
+					type="number" min="-90" max="90" step=".1">
+			</div>
+		</div>
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Distance</label>
+			<div class="col-xs-8">
+				<input class="col-xs-8" class="form-control input-normal" 
+					ng-model="position.distance" autofocus
+					type="number" min="0" max="5000" step="1"/> <span>metres</span>
+			</div>
+		</div>
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Hashtag(s)</label>
+			<div class="col-xs-8" ng-class='{"has-error":tagsErrorMessage}'>
+				<input type="text" class="form-control input-normal" ng-model="tags" autofocus
+					aria-describedby="tagHelpText" placeholder="(jewelry|jewellery) (ring|rings) !bling">
+				<p ng-if="tagsErrorMessage">{{tagsErrorMessage}}</p>
+				<p id="tagHelpText" class="help-block">Supports boolean queries using &amp; and |, () to group, 
+				and !<em>tag</em> to anti-tag</p>
+			</div>
+		</div>
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Minimum follower count</label>
+			<div class="col-xs-8">
+				<input type="number" class="form-control" ng-model="minFollowers" min="0" max="50000">
+			</div>
+		</div>
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Limit to most recent posts</label> 
+			<div class="col-xs-8">
+				<input type="number" class=" form-control"  ng-model="maxPosts" min="0" max="1000">
+			</div>
+		</div>
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Start date</label>
+			<div class="col-xs-8">
+				<input type="date" class="form-control" ng-model="untilDate" >
+			</div>
+		</div>
+		<div class="form-group form-group-sm">
+			<label class="col-xs-4 control-label">Show at most</label>
+			<div class="col-xs-8">			
+				<input type="number" ng-model="pluck" class="form-control" min="1" max="1000">
+			</div>
+		</div>
+		<div class="form-group">
+			<button type="submit" class="btn btn-primary col-xs-offset-4" ng-click="run()">Run</button>
+		</div>
+</form>
+</div>
+<div ng-if="running && !results">
+	<progress><bar value="progress"><span ng-hide="progress < 5">{{progress}}%</span></bar></progress>
+</div>
+<div ng-if="results" class="results">
+	<div>
+		<h1>Results</h1>
+		<p>
+				{{results.media.length}} posts from
+				{{results.earliest.created_time * 1000 | date:mediumDate}}
+				 to
+				{{results.latest.created_time * 1000 | date:mediumDate}}
+				({{(results.latest.created_time - results.earliest.created_time) / 60 / 60 / 24 | number:0}} days); approx  
+				{{results.media.length / ((results.latest.created_time - results.earliest.created_time) / 60 / 60 / 24) | number:2}} posts/day.
+		</p>
+	</div>
+	<div>
+		<div class="summary container">
+			<div class="row">
+				<div class="topUsers col-sm-4">
+					<table class="table table-condensed">
+						<caption>Top Users</caption>
+						<tr><th class="handle">Handle</th> <th class="count">Count</th></tr>
+						<tr><td colspan="2"><input type="search" ng-model="searchByHandle.handle" placeholder="filter by user"></td><td/></tr>
+						<tr ng-repeat="result in results.byUsers | filter:searchByHandle | limitTo:pluck">
+							<td class="handle"><span ng-click="showPostsFromUser(result.handle)">{{result.handle}}</span></td>
+							<td class="count">{{result.count}}</td>
+						</tr>
+					</table>
+				</div>
+				
+				<div class="topHashtags col-sm-4">
+					<table class="table table-condensed">
+						<caption>Top Hashtags</caption>
+						<tr><th class="tag">Tag</th> <th class="count">Count</th></tr>
+						<tr><td colspan="2"><input type="search" ng-model="searchByTag.tag" placeholder="filter by tag"></td><td/></tr>
+						<tr ng-repeat="result in results.byHashtags | filter:searchByTag | limitTo:pluck">
+							<td class="tag"><span ng-click="showPostsWithTag(result.tag)">{{result.tag}}</span></td>
+							<td class="count">{{result.count}}</td>
+						</tr>
+					</table>
+				</div>
+			
+				<div class="topHashtagPerUser col-sm-4">
+					<table class="table table-condensed">
+						<caption>Top Hashtags per User</caption>
+						<tr><th class="handle">Handle</th> <th class="tag">Tag</th> <th class="count">Count</th></tr>
+						<tr>
+							<td><input type="search" ng-model="searchByHandleCount.handle" placeholder="filter by user"></td>
+							<td><input type="search" ng-model="searchByHandleCount.tag" placeholder="filter by tag"></td>
+							<td/></tr>		
+						<tr ng-repeat="result in results.hashtagsByUser | filter:searchByHandleCount | limitTo:pluck">
+							<td class="handle"><span ng-click="showPostsFromUserWithTag(result.handle,result.tag)">{{result.handle}}</span></td>
+							<td class="tag"><span ng-click="showPostsFromUserWithTag(result.handle,result.tag)">{{result.tag}}</span></td>
+							 <td class="count">{{result.count}}</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+			
+		</div>	<!--  class="summary" -->		
+	</div>
+
+<!-- <div>{{results}}</div> -->
+</div>
